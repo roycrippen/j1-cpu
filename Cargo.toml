@@ -1,0 +1,22 @@
+[package]
+name = "j1"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+name = "j1"
+path = "src/lib.rs"
+edition = "2018"
+
+[[bin]]
+name = "j1-functional-tests"
+path = "src/functional-tests.rs"
+# required-features = ["build-binary"]
+
+[dependencies]
+# log = "0.4"
+# env_logger = {version = "0.7.1", optional = true }
+# clap = {version = "2.33.3", optional = true }
+
+# [features]
+# build-binary = ["clap", "env_logger"]

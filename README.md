@@ -1,6 +1,6 @@
 # J1 CPU emulator
 
-Emulator of the [J1](https://excamera.com/sphinx/fpga-j1.html) CPU written in Rust. <br>
+[J1](https://excamera.com/sphinx/fpga-j1.html) CPU emulator written in Rust. <br>
 Will be migrated to a variant of [J1-hacked](https://www.fpgarelated.com/showarticle/790.php) once completed. <br>
 Ported from [j1](https://github.com/dim13/j1) written in go. <br>
 requires [rustup](https://rustup.rs/) <br>
