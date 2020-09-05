@@ -4,35 +4,36 @@ pub struct Stack {
     sp: i8,
 }
 
+#[allow(dead_code)]
 impl Stack {
-    pub fn move_sp(&mut self, dir: i8) {
+    fn move_sp(&mut self, dir: i8) {
         self.sp = (self.sp + dir) & 0x1f
     }
 
-    pub fn push(&mut self, v: u16) {
+    fn push(&mut self, v: u16) {
         self.sp = (self.sp + 1) & 0x1f;
         self.data[self.sp as usize] = v
     }
 
-    pub fn pop(&mut self) -> u16 {
+    fn pop(&mut self) -> u16 {
         let sp = self.sp;
         self.sp = (self.sp - 1) & 0x1f;
         self.data[sp as usize]
     }
 
-    pub fn peek(&self) -> u16 {
+    fn peek(&self) -> u16 {
         self.data[self.sp as usize]
     }
 
-    pub fn replace(&mut self, v: u16) {
+    fn replace(&mut self, v: u16) {
         self.data[self.sp as usize] = v
     }
 
-    pub fn depth(&self) -> i8 {
+    fn depth(&self) -> i8 {
         self.sp
     }
 
-    pub fn dump(&self) -> Vec<u16> {
+    fn dump(&self) -> Vec<u16> {
         let last = (self.sp + 1) as usize;
         self.data[1..last].to_vec()
     }
