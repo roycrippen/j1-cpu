@@ -2,9 +2,9 @@ use std::io::{Cursor, Read, Write};
 
 #[allow(dead_code)]
 pub struct Console<T: Read + Write> {
-    ar1: [u8; 1],
-    in_buff: T,
-    out_buff: T,
+    pub(crate) ar1: [u8; 1],
+    pub(crate) in_buff: T,
+    pub(crate) out_buff: T,
 }
 
 trait IO {
@@ -50,7 +50,6 @@ impl IO for Console<&mut Cursor<Vec<u8>>> {
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
-
     use crate::console::*;
 
     #[test]
