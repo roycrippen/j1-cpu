@@ -72,22 +72,19 @@ impl<T: Read + Write> CPU<T> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
-
-    use crate::console::Console;
+    use crate::console::{Console, MockConsole, IO};
     use crate::cpu::CPU;
 
     #[test]
     fn load_bytes() {
-        let console = Console { ar1: [0], in_buff: Cursor::new(Vec::new()), out_buff: Cursor::new(Vec::new()) };
+        let console = Console::<MockConsole>::new(true);
         let mut cpu = CPU::new(console);
 
-        let data = &mut vec![234, 12, 16, 0, 0, 0];
+        let data = &mut vec![1, 2, 4, 8];
         cpu.load_bytes(data).unwrap();
 
-        let xs = &cpu.memory[0..3];
-        assert_eq!([3306, 16, 0], xs);
-        assert_eq!(0, xs[2]);
+        let xs = &cpu.memory[0..2];
+        assert_eq!([0x0201, 0x0804], xs);
         // println!("first {} items memory: {:?}", xs.len(), xs);
     }
 
@@ -100,7 +97,7 @@ mod tests {
         p.push("j1e.bin");
         let full_file_name = p.display().to_string();
 
-        let console = Console { ar1: [0], in_buff: Cursor::new(Vec::new()), out_buff: Cursor::new(Vec::new()) };
+        let console = Console::<MockConsole>::new(true);
         let mut cpu = CPU::new(console);
         cpu.load_bytes_from_file(full_file_name).unwrap();
 
