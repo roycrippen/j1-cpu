@@ -1,6 +1,5 @@
 use std::fs::File;
 use std::io::{Read, Write};
-use std::path::PathBuf;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
@@ -61,11 +60,7 @@ impl<T: Read + Write> CPU<T> {
     }
 
     fn load_bytes_from_file(&mut self, file_name: String) -> Result<(), String> {
-        let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        p.push("resources");
-        p.push(file_name);
-        let full_file_name = p.display().to_string();
-        let mut f = File::open(full_file_name).expect("Can not find binary file");
+        let mut f = File::open(file_name).expect("Can not find binary file");
         let xs = &mut Vec::new();
         f.read_to_end(xs).expect("Read file failed");
         self.load_bytes(xs)?;
@@ -98,9 +93,16 @@ mod tests {
 
     #[test]
     fn load_bytes_from_file() {
+        use std::path::PathBuf;
+
+        let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        p.push("resources");
+        p.push("j1e.bin");
+        let full_file_name = p.display().to_string();
+
         let console = Console { ar1: [0], in_buff: Cursor::new(Vec::new()), out_buff: Cursor::new(Vec::new()) };
         let mut cpu = CPU::new(console);
-        cpu.load_bytes_from_file("j1e.bin".to_string()).unwrap();
+        cpu.load_bytes_from_file(full_file_name).unwrap();
 
         let xs = &cpu.memory[0..8];
         assert_eq!([3306, 16, 0, 0, 0, 16128, 3650, 3872], xs);
