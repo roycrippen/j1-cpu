@@ -1,5 +1,4 @@
-use std::io::{Read, Cursor};
-use std::io::Write;
+use std::io::{Cursor, Read, Write};
 
 #[allow(dead_code)]
 pub struct Console<T: Read + Write> {
@@ -10,7 +9,7 @@ pub struct Console<T: Read + Write> {
 
 trait IO {
     fn read(&mut self, xs: &mut [u8]);
-    fn buff_len(&self) -> usize;
+    fn in_buff_len(&self) -> usize;
     fn read_byte(&mut self) -> Option<u8>;
     fn read_all_bytes(&mut self) -> Vec<u8>;
     fn write_byte(&mut self, v: u8);
@@ -23,7 +22,7 @@ impl IO for Console<&mut Cursor<Vec<u8>>> {
         self.in_buff.set_position(0);
     }
 
-    fn buff_len(&self) -> usize {
+    fn in_buff_len(&self) -> usize {
         self.in_buff.get_ref().len()
     }
 
@@ -50,8 +49,9 @@ impl IO for Console<&mut Cursor<Vec<u8>>> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Cursor;
+
     use crate::console::*;
-    use std::io::{Cursor};
 
     #[test]
     fn mock_read_bytes() {
@@ -59,14 +59,14 @@ mod tests {
 
         let mut cmds: Vec<u8> = "1 2 + .s\n".bytes().collect();
         console.read(&mut cmds);
-        assert_eq!(cmds.len(), console.in_buff.get_ref().len());
+        assert_eq!(cmds.len(), console.in_buff_len());
         assert_eq!(0, console.in_buff.position());
         // println!("buff len = {:?}, buff pos = {}", console.io.get_ref().len(), console.io.position());
 
         let xs = console.read_all_bytes();
         assert_eq!(cmds, xs);
         assert_eq!(None, console.read_byte());
-        assert_eq!(console.buff_len() as u64, console.in_buff.position());
+        assert_eq!(console.in_buff_len() as u64, console.in_buff.position());
     }
 }
 
