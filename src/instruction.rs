@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn alu_attributes() {
-        println!("default = {:?}", AluAttributes::default());
+        // println!("default = {:?}", AluAttributes::default());
         assert_eq!(
             AluAttributes::default(),
             AluAttributes { opcode: 0, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 }

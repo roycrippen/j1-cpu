@@ -1,13 +1,15 @@
 use std::fs::File;
-use std::io::{Read, Write};
+use std::io::Read;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::console::Console;
+use crate::console::{Console, IO};
 use crate::stack::Stack;
 
+const IO_MASK: u16 = 3 << 14;
+
 #[allow(dead_code)]
-pub struct CPU<T: Read + Write> {
+pub struct CPU<T: IO> {
     // 0..0x3fff RAM, 0x4000..0x7fff mem-mapped I/O
     memory: Box<[u16; 8192]>,
 
@@ -28,7 +30,7 @@ pub struct CPU<T: Read + Write> {
 }
 
 #[allow(dead_code)]
-impl<T: Read + Write> CPU<T> {
+impl<T: IO> CPU<T> {
     fn new(console: Console<T>) -> Self {
         CPU {
             memory: Box::new([0u16; 8192]),
@@ -37,6 +39,24 @@ impl<T: Read + Write> CPU<T> {
             d: Stack::default(),
             r: Stack::default(),
             console,
+        }
+    }
+
+    fn reset(&mut self) {
+        self.pc = 0;
+        self.st0 = 0;
+        self.d = Stack::default();
+        self.r = Stack::default();
+    }
+
+    fn read_at(&mut self, addr: u16) -> u16 {
+        if addr & IO_MASK == 0 {
+            return self.memory[addr as usize];
+        }
+        match addr {
+            0x7000 => self.console.buf.read_byte().unwrap_or(0) as u16, // tx!
+            0x7001 => self.console.buf.buf_len() as u16,                // ?rx
+            _ => 0 as u16
         }
     }
 
@@ -72,8 +92,23 @@ impl<T: Read + Write> CPU<T> {
 
 #[cfg(test)]
 mod tests {
-    use crate::console::{Console, MockConsole, IO};
+    use crate::console::{Console, MockConsole};
     use crate::cpu::CPU;
+
+    #[test]
+    fn reset() {
+        let console: Console<MockConsole> = Console::new(true);
+        let mut cpu = CPU::new(console);
+
+        cpu.pc = 100;
+        cpu.st0 = 10;
+        cpu.d.move_sp(10);
+        cpu.r.move_sp(20);
+        debug_assert_eq!(140, cpu.pc + cpu.st0 + cpu.d.depth() + cpu.r.depth());
+
+        cpu.reset();
+        debug_assert_eq!(0, cpu.pc + cpu.st0 + cpu.d.depth() + cpu.r.depth());
+    }
 
     #[test]
     fn load_bytes() {

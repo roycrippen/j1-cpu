@@ -6,34 +6,32 @@ pub struct Stack {
 
 #[allow(dead_code)]
 impl Stack {
-    fn move_sp(&mut self, dir: i8) {
+    pub fn move_sp(&mut self, dir: i8) {
         self.sp = (self.sp + dir) & 0x1f
     }
 
-    fn push(&mut self, v: u16) {
+    pub fn push(&mut self, v: u16) {
         self.sp = (self.sp + 1) & 0x1f;
         self.data[self.sp as usize] = v
     }
 
-    fn pop(&mut self) -> u16 {
+    pub fn pop(&mut self) -> u16 {
         let sp = self.sp;
         self.sp = (self.sp - 1) & 0x1f;
         self.data[sp as usize]
     }
 
-    fn peek(&self) -> u16 {
+    pub fn peek(&self) -> u16 {
         self.data[self.sp as usize]
     }
 
-    fn replace(&mut self, v: u16) {
+    pub fn replace(&mut self, v: u16) {
         self.data[self.sp as usize] = v
     }
 
-    fn depth(&self) -> i8 {
-        self.sp
-    }
+    pub fn depth(&self) -> u16 { self.sp as u16 }
 
-    fn dump(&self) -> Vec<u16> {
+    pub fn dump(&self) -> Vec<u16> {
         let last = (self.sp + 1) as usize;
         self.data[1..last].to_vec()
     }
@@ -70,7 +68,7 @@ mod tests {
         s.push(8);
         s.push(9);
 
-        println!("{:?}", s.data);
+        // println!("{:?}", s.data);
         // println!("{:?}", s.dump());
         // println!("s.sp = {}", s.sp);
         assert_eq!(s.dump().len(), s.depth() as usize);
