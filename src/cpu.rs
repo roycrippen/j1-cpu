@@ -6,7 +6,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 use crate::console::{Console, IO, MockConsole};
 use crate::stack::Stack;
-use crate::instruction::{Instruction, decode};
+use crate::instruction::{Instruction, decode, OpCode};
 
 const IO_MASK: u16 = 3 << 14;
 
@@ -58,7 +58,7 @@ impl<T: IO> CPU<T> {
         match addr {
             0x7000 => self.console.buf.read_byte().unwrap_or(0) as u16, // tx!
             0x7001 => self.console.buf.buf_len() as u16,                // ?rx
-            _ => 0 as u16
+            _ => 0 as u16 // error
         }
     }
 
@@ -67,16 +67,15 @@ impl<T: IO> CPU<T> {
     }
 
     fn execute(&mut self, _ins: &Instruction) -> Result<(), String> {
-
         Ok(())
     }
 
-    fn run (&mut self) {
+    fn run(&mut self) {
         loop {
             if let Ok(ins) = self.fetch() {
                 if let Err(e) = self.execute(&ins) {
                     if e == "bye" {
-                        break
+                        break;
                     }
                 }
             } else {
@@ -85,7 +84,30 @@ impl<T: IO> CPU<T> {
         }
     }
 
-    // fn (&mut self, opcode: )
+    fn new_st0(&mut self, opcode: &OpCode) -> u16 {
+        let bool_value = |b: bool| -> u16 { if b { !0 } else { 0 } };
+        let t = self.st0;       // T
+        let n = self.d.peek();  // N
+        let r = self.r.peek();  // R
+        match opcode {
+            OpCode::OpT => t,                      // T
+            OpCode::OpN => n,                      // N
+            OpCode::OpTplusN => t + n,             // T + N
+            OpCode::OpTandN => t & n,              // T & N
+            OpCode::OpTorN => t | n,               // T | N
+            OpCode::OpTxorN => t ^ n,              // T ^ N
+            OpCode::OpNotT => !t,                  //  !T
+            OpCode::OpNeqT => bool_value(n == t),  // N == T
+            OpCode::OpNleT => bool_value((n as i16) < (t as i16)),   // N < T
+            OpCode::OpNrshiftT => n >> (t & 0xf),  // N >> T
+            OpCode::OpTminus1 => t - 1,            // T - 1
+            OpCode::OpR => r,                      // R
+            OpCode::OpAtT => self.read_at(t),      // [T]
+            OpCode::OpNlshiftT => n << (t & 0xf),  // N << T
+            OpCode::OpDepth => (self.r.depth() << 8) | self.d.depth(),  // depth (dsp)
+            OpCode::OpNuleT => bool_value(n < t),  // Nu < T
+        }
+    }
 
     fn load_bytes(&mut self, data: &mut Vec<u8>) -> Result<(), String> {
         if data.len() % 2 != 0 {
@@ -116,7 +138,7 @@ impl<T: IO> CPU<T> {
     }
 }
 
-// helper
+// helpers
 pub fn load_j1e_bin() -> CPU<MockConsole> {
     let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     p.push("resources");
@@ -133,6 +155,7 @@ pub fn load_j1e_bin() -> CPU<MockConsole> {
 mod tests {
     use crate::console::{Console, MockConsole, IO};
     use crate::cpu::{CPU, load_j1e_bin};
+    use crate::instruction::OpCode::*;
 
     #[test]
     fn reset() {
@@ -160,7 +183,7 @@ mod tests {
 
         // 0x7000 => tx!,  0x7001 => ?rx
         assert_eq!(9, cpu.read_at(0x7001));
-        assert_eq!('1' as u16,  cpu.read_at(0x7000));
+        assert_eq!('1' as u16, cpu.read_at(0x7000));
         assert_eq!(' ' as u16, cpu.read_at(0x7000));
         assert_eq!('2' as u16, cpu.read_at(0x7000));
         assert_eq!(6, cpu.read_at(0x7001));
@@ -185,5 +208,44 @@ mod tests {
         let xs = &cpu.memory[0..8];
         assert_eq!([3306, 16, 0, 0, 0, 16128, 3650, 3872], xs);
         // println!("first {} items memory: {:?}", xs.len(), xs);
+    }
+
+    #[test]
+    fn new_st0() {
+        let mut cpu = load_j1e_bin();
+
+        let test_cases = [
+            (OpN, 66u16, 16000u16, 6620u16, 16000u16),
+            (OpR, 16000, 2, 66, 66),
+            (OpTminus1, 66, 16000, 6620, 65),
+            (OpT, 2, 0, 16000, 2),
+            (OpTandN, 1, 2, 2774, 0),
+            (OpNlshiftT, 8, 16, 2778, 4096),
+            (OpTorN, 4096, 16, 2778, 4112),
+            (OpNeqT, 0, 0, 2778, 65535),
+            (OpTxorN, 255, 65535, 2778, 65280),
+            (OpTplusN, 1, 2, 2780, 3),
+            (OpNlshiftT, 8, 16, 2778, 4096),
+            (OpNotT, 2, 16386, 1326, 65533),
+            (OpNuleT, 2, 0, 1892, 65535),
+            (OpNleT, 0, 0, 878, 0),
+            (OpAtT, 2, 0, 0, 0),
+        ];
+        for (opcode, t, n, r, expected) in test_cases.iter() {
+            cpu.st0 = *t;
+            cpu.d.push(*n);
+            cpu.r.push(*r);
+            assert_eq!(*expected, cpu.new_st0(opcode));
+            // println!("opcode {:?}, t {}, n {}, t {}", opcode, t, n, r);
+            cpu.d.pop();
+            cpu.r.pop();
+        }
+
+        // OpDepth check
+        cpu.st0 = 0;
+        cpu.d.move_sp(0);
+        cpu.r.move_sp(4);
+        assert_eq!(1024, cpu.new_st0(&OpDepth));
+        // println!("{:?}, d.depth() = {}, r.depth() = {}", OpDepth, cpu.d.depth(), cpu.r.depth());
     }
 }
