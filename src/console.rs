@@ -57,7 +57,7 @@ impl IO for MockConsole {
     }
 
     fn buf_len(&self) -> usize {
-        self.get_ref().len()
+        self.get_ref().len() - self.position() as usize
     }
 
     fn read_byte(&mut self) -> Option<u8> {
@@ -101,7 +101,7 @@ mod tests {
         let xs = console.buf.read_all_bytes();
         assert_eq!(cmds, xs);
         assert_eq!(None, console.buf.read_byte());
-        assert_eq!(console.buf.buf_len() as u64, console.buf.position());
+        assert_eq!(console.buf.buf_len(), 0);
     }
 
     #[test]
