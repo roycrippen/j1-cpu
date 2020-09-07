@@ -1,5 +1,6 @@
 use std::fmt;
 use crate::instruction::Instruction::*;
+use crate::instruction::OpCode::*;
 
 const EXPAND: [i8; 4] = [0, 1, -2, -1];
 const OPCODE_NAMES: [&'static str; 16] = [
@@ -69,7 +70,7 @@ pub fn decode(v: u16) -> Result<Instruction, String> {
 
 pub fn decode_alu(v: u16) -> AluAttributes {
     AluAttributes {
-        opcode: (v >> 8) & 15,
+        opcode: OpCode::from((v >> 8) & 15).unwrap(),
         r2pc: v & (1 << 12) != 0,
         t2n: v & (1 << 7) != 0,
         t2r: v & (1 << 6) != 0,
@@ -123,9 +124,58 @@ impl fmt::Display for Instruction {
     }
 }
 
+#[repr(u16)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum OpCode {
+    OpT = 0,
+    OpN = 1,
+    OpTplusN = 2,
+    OpTandN = 3,
+    OpTorN = 4,
+    OpTxorN = 5,
+    OpNotT = 6,
+    OpNeqT = 7,
+    OpNleT = 8,
+    OpNrshiftT = 9,
+    OpTminus1 = 10,
+    OpR = 11,
+    OpAtT = 12,
+    OpNlshiftT = 13,
+    OpDepth = 14,
+    OpNuleT = 15,
+}
+
+impl Default for OpCode {
+    fn default() -> Self { OpT }
+}
+
+impl OpCode {
+    pub fn from(x: u16) -> Option<OpCode> {
+        match x {
+            0 => Some(OpT),
+            1 => Some(OpN),
+            2 => Some(OpTplusN),
+            3 => Some(OpTandN),
+            4 => Some(OpTorN),
+            5 => Some(OpTxorN),
+            6 => Some(OpNotT),
+            7 => Some(OpNeqT),
+            8 => Some(OpNleT),
+            9 => Some(OpNrshiftT),
+            10 => Some(OpTminus1),
+            11 => Some(OpR),
+            12 => Some(OpAtT),
+            13 => Some(OpNlshiftT),
+            14 => Some(OpDepth),
+            15 => Some(OpNuleT),
+            _ => None
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct AluAttributes {
-    opcode: u16,
+    opcode: OpCode,
     r2pc: bool,
     t2n: bool,
     t2r: bool,
@@ -137,7 +187,7 @@ pub struct AluAttributes {
 impl AluAttributes {
     pub fn value(&self) -> u16 {
         {
-            let mut ret = self.opcode << 8;
+            let mut ret = (self.opcode as u16) << 8;
             if self.r2pc { ret = ret | 1 << 12 }
             if self.t2n { ret = ret | 1 << 7 }
             if self.t2r { ret = ret | 1 << 6 }
@@ -166,13 +216,21 @@ impl AluAttributes {
 #[cfg(test)]
 mod tests {
     use crate::instruction::*;
+    use crate::instruction::OpCode::{OpDepth, OpT};
+
+    #[test]
+    fn op_code() {
+        let op_t = OpT as u16;
+        let op_depth = OpDepth as u16;
+        assert_eq!((0u16, 14u16), (op_t, op_depth))
+    }
 
     #[test]
     fn alu_attributes() {
         // println!("default = {:?}", AluAttributes::default());
         assert_eq!(
             AluAttributes::default(),
-            AluAttributes { opcode: 0, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 }
+            AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 }
         );
     }
 
@@ -187,19 +245,19 @@ mod tests {
             (0x5fff, Call(0x1fff)),
             (0x8000, Literal(0x0000)),
             (0xffff, Literal(0x7fff)),
-            (0x6000, ALU(AluAttributes { opcode: 0, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
-            (0x6100, ALU(AluAttributes { opcode: 1, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
-            (0x7000, ALU(AluAttributes { opcode: 0, r2pc: true, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
-            (0x6080, ALU(AluAttributes { opcode: 0, r2pc: false, t2n: true, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
-            (0x6040, ALU(AluAttributes { opcode: 0, r2pc: false, t2n: false, t2r: true, n2t: false, r_dir: 0, d_dir: 0 })),
-            (0x6020, ALU(AluAttributes { opcode: 0, r2pc: false, t2n: false, t2r: false, n2t: true, r_dir: 0, d_dir: 0 })),
-            (0x600c, ALU(AluAttributes { opcode: 0, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: -1, d_dir: 0 })),
-            (0x6004, ALU(AluAttributes { opcode: 0, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 1, d_dir: 0 })),
-            (0x6003, ALU(AluAttributes { opcode: 0, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: -1 })),
-            (0x6001, ALU(AluAttributes { opcode: 0, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 1 })),
-            (0x6f00, ALU(AluAttributes { opcode: 15, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
-            (0x70e5, ALU(AluAttributes { opcode: 0, r2pc: true, t2n: true, t2r: true, n2t: true, r_dir: 1, d_dir: 1 })),
-            (0x7fef, ALU(AluAttributes { opcode: 15, r2pc: true, t2n: true, t2r: true, n2t: true, r_dir: -1, d_dir: -1 })),
+            (0x6000, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
+            (0x6100, ALU(AluAttributes { opcode: OpN, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
+            (0x7000, ALU(AluAttributes { opcode: OpT, r2pc: true, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
+            (0x6080, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: true, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
+            (0x6040, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: true, n2t: false, r_dir: 0, d_dir: 0 })),
+            (0x6020, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: true, r_dir: 0, d_dir: 0 })),
+            (0x600c, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: -1, d_dir: 0 })),
+            (0x6004, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 1, d_dir: 0 })),
+            (0x6003, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: -1 })),
+            (0x6001, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 1 })),
+            (0x6f00, ALU(AluAttributes { opcode: OpNuleT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
+            (0x70e5, ALU(AluAttributes { opcode: OpT, r2pc: true, t2n: true, t2r: true, n2t: true, r_dir: 1, d_dir: 1 })),
+            (0x7fef, ALU(AluAttributes { opcode: OpNuleT, r2pc: true, t2n: true, t2r: true, n2t: true, r_dir: -1, d_dir: -1 })),
         ];
         for (bin, expected_instruction) in test_cases.iter() {
             let decoded = decode(*bin).unwrap();
