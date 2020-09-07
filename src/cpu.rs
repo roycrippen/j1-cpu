@@ -1,10 +1,12 @@
 use std::fs::File;
 use std::io::Read;
+use std::path::PathBuf;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::console::{Console, IO};
+use crate::console::{Console, IO, MockConsole};
 use crate::stack::Stack;
+use crate::instruction::{Instruction, decode};
 
 const IO_MASK: u16 = 3 << 14;
 
@@ -60,6 +62,31 @@ impl<T: IO> CPU<T> {
         }
     }
 
+    fn fetch(&self) -> Result<Instruction, String> {
+        decode(self.memory[self.pc as usize])
+    }
+
+    fn execute(&mut self, _ins: &Instruction) -> Result<(), String> {
+
+        Ok(())
+    }
+
+    fn run (&mut self) {
+        loop {
+            if let Ok(ins) = self.fetch() {
+                if let Err(e) = self.execute(&ins) {
+                    if e == "bye" {
+                        break
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+    }
+
+    // fn (&mut self, opcode: )
+
     fn load_bytes(&mut self, data: &mut Vec<u8>) -> Result<(), String> {
         if data.len() % 2 != 0 {
             return Err("Odd number of bytes provided".to_string());
@@ -89,11 +116,23 @@ impl<T: IO> CPU<T> {
     }
 }
 
+// helper
+pub fn load_j1e_bin() -> CPU<MockConsole> {
+    let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    p.push("resources");
+    p.push("j1e.bin");
+    let full_file_name = p.display().to_string();
+
+    let console = Console::<MockConsole>::new(true);
+    let mut cpu = CPU::new(console);
+    cpu.load_bytes_from_file(full_file_name).unwrap();
+    cpu
+}
 
 #[cfg(test)]
 mod tests {
-    use crate::console::{Console, MockConsole};
-    use crate::cpu::CPU;
+    use crate::console::{Console, MockConsole, IO};
+    use crate::cpu::{CPU, load_j1e_bin};
 
     #[test]
     fn reset() {
@@ -111,6 +150,23 @@ mod tests {
     }
 
     #[test]
+    fn reaad_at() {
+        let mut cpu = load_j1e_bin();
+        assert_eq!(16128, cpu.read_at(5));
+        assert_eq!(3650, cpu.read_at(6));
+
+        let mut cmds: Vec<u8> = "1 2 + .s\n".bytes().collect();
+        cpu.console.buf.load_buf(&mut cmds);
+
+        // 0x7000 => tx!,  0x7001 => ?rx
+        assert_eq!(9, cpu.read_at(0x7001));
+        assert_eq!('1' as u16,  cpu.read_at(0x7000));
+        assert_eq!(' ' as u16, cpu.read_at(0x7000));
+        assert_eq!('2' as u16, cpu.read_at(0x7000));
+        assert_eq!(6, cpu.read_at(0x7001));
+    }
+
+    #[test]
     fn load_bytes() {
         let console = Console::<MockConsole>::new(true);
         let mut cpu = CPU::new(console);
@@ -125,17 +181,7 @@ mod tests {
 
     #[test]
     fn load_bytes_from_file() {
-        use std::path::PathBuf;
-
-        let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        p.push("resources");
-        p.push("j1e.bin");
-        let full_file_name = p.display().to_string();
-
-        let console = Console::<MockConsole>::new(true);
-        let mut cpu = CPU::new(console);
-        cpu.load_bytes_from_file(full_file_name).unwrap();
-
+        let cpu = load_j1e_bin();
         let xs = &cpu.memory[0..8];
         assert_eq!([3306, 16, 0, 0, 0, 16128, 3650, 3872], xs);
         // println!("first {} items memory: {:?}", xs.len(), xs);
