@@ -67,7 +67,7 @@ impl<T: IO> CPU<T> {
 
     fn read_at(&mut self, addr: u16) -> u16 {
         if addr & IO_MASK == 0 {
-            return self.memory[addr as usize];
+            return self.memory[(addr >> 1) as usize];
         }
         match addr {
             0x7000 => self.console.buf.read_byte().unwrap_or(0) as u16, // tx!
@@ -207,7 +207,7 @@ mod tests {
     use crate::console::{Console, IO, MockConsole};
     use crate::cpu::{CPU, load_j1e_bin};
     use crate::instruction::OpCode::*;
-    use crate::instruction::{Instruction, AluAttributes};
+    use crate::instruction::{Instruction, AluAttributes, OpCode};
     use crate::instruction::Instruction::{Jump, Literal, Conditional, Call, ALU};
 
     #[test]
@@ -228,8 +228,8 @@ mod tests {
     #[test]
     fn reaad_at() {
         let mut cpu = load_j1e_bin();
-        assert_eq!(16128, cpu.read_at(5));
-        assert_eq!(3650, cpu.read_at(6));
+        assert_eq!(16128, cpu.read_at(11));
+        assert_eq!(3650, cpu.read_at(12));
 
         let mut cmds: Vec<u8> = "1 2 + .s\n".bytes().collect();
         cpu.console.buf.load_buf(&mut cmds);
@@ -264,7 +264,7 @@ mod tests {
     }
 
     #[test]
-    fn new_st0() {
+    fn new_st0_1() {
         let mut cpu = load_j1e_bin();
 
         let test_cases = [
@@ -282,7 +282,7 @@ mod tests {
             (OpNotT, 2, 16386, 1326, 65533),
             (OpNuleT, 2, 0, 1892, 65535),
             (OpNleT, 0, 0, 878, 0),
-            (OpAtT, 2, 0, 0, 0),
+            (OpAtT, 2, 0, 0, 16),
         ];
         for (opcode, t, n, r, expected) in test_cases.iter() {
             cpu.st0 = *t;
@@ -300,6 +300,65 @@ mod tests {
         cpu.r.move_sp(4);
         assert_eq!(1024, cpu.new_st0(&OpDepth));
         // println!("{:?}, d.depth() = {}, r.depth() = {}", OpDepth, cpu.d.depth(), cpu.r.depth());
+    }
+
+    #[test]
+    fn new_st0_2() {
+        let console = Console::<MockConsole>::new(true);
+        let default_cpu = CPU::new(console);
+        let mut test_cases: Vec<(OpCode, u16, CPU<MockConsole>)> = vec![];
+
+        let mut cpu = default_cpu.clone();
+        cpu.st0 = 0x55;
+        test_cases.push((OpT, 0x55, cpu.clone()));
+        test_cases.push((OpTminus1, 0x54, cpu.clone()));
+        test_cases.push((OpNotT, 0xffaa, cpu.clone()));
+
+        cpu = default_cpu.clone();
+        cpu.st0 = 0xff;
+        cpu.d.push(0xaa);
+        cpu.d.push(0xbb);
+        test_cases.push((OpN, 0xbb, cpu.clone()));
+        test_cases.push((OpTplusN, 0x01ba, cpu.clone()));
+        test_cases.push((OpTandN, 0xbb, cpu.clone()));
+        test_cases.push((OpTorN, 0xff, cpu.clone()));
+        test_cases.push((OpTxorN, 0x44, cpu.clone()));
+        test_cases.push((OpNeqT, 0x00, cpu.clone()));
+        test_cases.push((OpNleT, 0xffff, cpu.clone()));
+        test_cases.push((OpNuleT, 0xffff, cpu.clone()));
+
+        cpu = default_cpu.clone();
+        cpu.st0 = 0xff;
+        cpu.d.push(0xaa);
+        cpu.d.push(0xff);
+        test_cases.push((OpNeqT, 0xffff, cpu.clone()));
+        test_cases.push((OpNleT, 0x00, cpu.clone()));
+        test_cases.push((OpNuleT, 0x00, cpu.clone()));
+
+        cpu = default_cpu.clone();
+        cpu.st0 = 0x02;
+        cpu.d.push(0xaa);
+        cpu.d.push(0xff);
+        test_cases.push((OpNrshiftT, 0x3f, cpu.clone()));
+        test_cases.push((OpNlshiftT, 0x3fc, cpu.clone()));
+
+        cpu = default_cpu.clone();
+        cpu.r.push(0x05);
+        test_cases.push((OpR, 0x5, cpu.clone()));
+
+        cpu = default_cpu.clone();
+        cpu.st0 = 0x02;
+        cpu.memory[0] = 0;
+        cpu.memory[1] = 5;
+        cpu.memory[2] = 10;
+        test_cases.push((OpAtT, 0x5, cpu.clone()));
+
+
+
+        for (opcode, expected_st0, cpu) in test_cases.iter() {
+            let st0 = cpu.clone().new_st0(opcode);
+            assert_eq!(*expected_st0, st0)
+        }
     }
 
     #[test]
