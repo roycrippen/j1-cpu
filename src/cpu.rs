@@ -5,12 +5,14 @@ use std::path::PathBuf;
 use byteorder::{LittleEndian, ReadBytesExt};
 
 use crate::console::{Console, IO, MockConsole};
+use crate::instruction::{decode, Instruction, OpCode};
+use crate::instruction::Instruction::{ALU, Call, Conditional, Jump, Literal};
 use crate::stack::Stack;
-use crate::instruction::{Instruction, decode, OpCode};
 
 const IO_MASK: u16 = 3 << 14;
 
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct CPU<T: IO> {
     // 0..0x3fff RAM, 0x4000..0x7fff mem-mapped I/O
     memory: Box<[u16; 8192]>,
@@ -51,6 +53,18 @@ impl<T: IO> CPU<T> {
         self.r = Stack::default();
     }
 
+    fn write_at(&mut self, addr: u16, value: u16) -> Result<(), String> {
+        if addr & IO_MASK == 0 {
+            self.memory[(addr >> 1) as usize] = value;
+        }
+        match addr {
+            0x7000 => self.console.buf.write_byte(value as u8),  // key
+            0x7001 => return Err("bye".to_string()),             // bye
+            _ => ()
+        }
+        Ok(())
+    }
+
     fn read_at(&mut self, addr: u16) -> u16 {
         if addr & IO_MASK == 0 {
             return self.memory[addr as usize];
@@ -66,7 +80,43 @@ impl<T: IO> CPU<T> {
         decode(self.memory[self.pc as usize])
     }
 
-    fn execute(&mut self, _ins: &Instruction) -> Result<(), String> {
+    fn execute(&mut self, ins: &Instruction) -> Result<(), String> {
+        self.pc += 1;
+        match ins {
+            Literal(v) => {
+                self.d.push(self.st0);
+                self.st0 = *v
+            }
+            Jump(v) => self.pc = *v,
+            Call(v) => {
+                self.r.push(self.pc << 1);
+                self.pc = *v
+            }
+            Conditional(v) => {
+                if self.st0 == 0 {
+                    self.pc = *v
+                }
+                self.st0 = self.d.pop()
+            }
+            ALU(alu) => {
+                if alu.r2pc {
+                    self.pc = self.r.peek() >> 1
+                }
+                if alu.n2_at_t {
+                    self.write_at(self.st0, self.d.peek())?;
+                }
+                let st0 = self.new_st0(&alu.opcode);
+                self.d.move_sp(alu.d_dir);
+                self.r.move_sp(alu.r_dir);
+                if alu.t2n {
+                    self.d.replace(self.st0)
+                }
+                if alu.t2r {
+                    self.r.replace(self.st0)
+                }
+                self.st0 = st0
+            }
+        }
         Ok(())
     }
 
@@ -151,11 +201,14 @@ pub fn load_j1e_bin() -> CPU<MockConsole> {
     cpu
 }
 
+
 #[cfg(test)]
 mod tests {
-    use crate::console::{Console, MockConsole, IO};
+    use crate::console::{Console, IO, MockConsole};
     use crate::cpu::{CPU, load_j1e_bin};
     use crate::instruction::OpCode::*;
+    use crate::instruction::{Instruction, AluAttributes};
+    use crate::instruction::Instruction::{Jump, Literal, Conditional, Call, ALU};
 
     #[test]
     fn reset() {
@@ -247,5 +300,245 @@ mod tests {
         cpu.r.move_sp(4);
         assert_eq!(1024, cpu.new_st0(&OpDepth));
         // println!("{:?}, d.depth() = {}, r.depth() = {}", OpDepth, cpu.d.depth(), cpu.r.depth());
+    }
+
+    #[test]
+    fn eval() {
+        let cmp = |expected: &CPU<MockConsole>, result: &CPU<MockConsole>| {
+            assert_eq!(expected.pc, result.pc);
+            assert_eq!(expected.st0, result.st0);
+            assert_eq!(expected.d.sp, result.d.sp);
+            assert_eq!(expected.r.sp, result.r.sp);
+            assert_eq!(expected.d.dump(), result.d.dump());
+            assert_eq!(expected.r.dump(), result.r.dump());
+        };
+        let console = Console::<MockConsole>::new(true);
+        let default_cpu = CPU::new(console);
+
+        struct Eval { inss: Vec<Instruction>, e_cpu: CPU<MockConsole> }
+        let mut test_cases: Vec<Eval> = vec![];
+
+        // test 01
+        let mut inss = vec![Jump(0xff)];
+        let mut e_cpu = default_cpu.clone();
+        e_cpu.pc = 0xff;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 02
+        inss = vec![Literal(1), Conditional(0xff)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 2;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 03
+        inss = vec![Literal(0), Conditional(0xff)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 0xff;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 04
+        inss = vec![Call(0xff)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 0xff;
+        e_cpu.r.push(0x02);
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 05
+        inss = vec![Literal(0xff)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 1;
+        e_cpu.st0 = 0xff;
+        e_cpu.d.sp = 1;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 06
+        inss = vec![Literal(0xff), Literal(0xfe)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 2;
+        e_cpu.st0 = 0xfe;
+        e_cpu.d.push(0x00);
+        e_cpu.d.push(0xff);
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 07 - dup
+        let mut alu = AluAttributes::default();
+        alu.opcode = OpT;
+        alu.t2n = true;
+        alu.d_dir = 1;
+        inss = vec![Literal(0xff), ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 2;
+        e_cpu.st0 = 0xff;
+        e_cpu.d.push(0x00);
+        e_cpu.d.push(0xff);
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 08 - over
+        alu = AluAttributes::default();
+        alu.opcode = OpN;
+        alu.t2n = true;
+        alu.d_dir = 1;
+        inss = vec![Literal(0xaa), Literal(0xbb), ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 3;
+        e_cpu.st0 = 0xaa;
+        e_cpu.d.push(0x00);
+        e_cpu.d.push(0xaa);
+        e_cpu.d.push(0xbb);
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 09 - invert
+        alu = AluAttributes::default();
+        alu.opcode = OpNotT;
+        inss = vec![Literal(0x00ff), ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 2;
+        e_cpu.st0 = 0xff00;
+        e_cpu.d.sp = 1;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 10 - plus
+        alu = AluAttributes::default();
+        alu.opcode = OpTplusN;
+        alu.d_dir = -1;
+        inss = vec![Literal(1), Literal(2), ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 3;
+        e_cpu.st0 = 3;
+        e_cpu.d.push(0);
+        e_cpu.d.push(1);
+        e_cpu.d.sp = 1;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 11 - swap
+        alu = AluAttributes::default();
+        alu.opcode = OpN;
+        alu.t2n = true;
+        inss = vec![Literal(2), Literal(3), ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 3;
+        e_cpu.st0 = 2;
+        e_cpu.d.push(0);
+        e_cpu.d.push(3);
+        e_cpu.d.sp = 2;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 12 - nip
+        alu = AluAttributes::default();
+        alu.opcode = OpT;
+        alu.d_dir = -1;
+        inss = vec![Literal(2), Literal(3), ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 3;
+        e_cpu.st0 = 3;
+        e_cpu.d.push(0);
+        e_cpu.d.push(2);
+        e_cpu.d.sp = 1;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 13 - drop
+        alu = AluAttributes::default();
+        alu.opcode = OpN;
+        alu.d_dir = -1;
+        inss = vec![Literal(2), Literal(3), ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 3;
+        e_cpu.st0 = 2;
+        e_cpu.d.push(0);
+        e_cpu.d.push(2);
+        e_cpu.d.sp = 1;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 14 - ;
+        alu = AluAttributes::default();
+        alu.opcode = OpT;
+        alu.r_dir = -1;
+        alu.r2pc = true;
+        inss = vec![Call(10), Call(20), ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 11;
+        e_cpu.r.push(2);
+        e_cpu.r.push(22);
+        e_cpu.r.sp = 1;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 15 - >r
+        alu = AluAttributes::default();
+        alu.opcode = OpN;
+        alu.r_dir = 1;
+        alu.d_dir = -1;
+        alu.t2r = true;
+        inss = vec![Literal(10), ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 2;
+        e_cpu.r.push(10);
+        e_cpu.r.sp = 1;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 16 - r>
+        alu = AluAttributes::default();
+        alu.opcode = OpR;
+        alu.r_dir = -1;
+        alu.d_dir = 1;
+        alu.t2n = true;
+        inss = vec![Literal(10), Call(20), ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 21;
+        e_cpu.st0 = 4;
+        e_cpu.d.push(0);
+        e_cpu.d.push(10);
+        e_cpu.d.sp = 2;
+        e_cpu.r.push(10);
+        e_cpu.r.push(4);
+        e_cpu.r.sp = 0;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 17 - r@
+        alu = AluAttributes::default();
+        alu.opcode = OpR;
+        alu.r_dir = 0;
+        alu.d_dir = 1;
+        alu.t2n = true;
+        inss = vec![Literal(10), ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 2;
+        e_cpu.st0 = 0;
+        e_cpu.d.push(0);
+        e_cpu.d.push(10);
+        e_cpu.d.sp = 2;
+        e_cpu.r.push(10);
+        e_cpu.r.sp = 0;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 18 - r@
+        alu = AluAttributes::default();
+        alu.opcode = OpAtT;
+        inss = vec![ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 1;
+        test_cases.push(Eval { inss, e_cpu });
+
+        // test 19 - !
+        alu = AluAttributes::default();
+        alu.opcode = OpN;
+        alu.d_dir = -1;
+        alu.n2_at_t = true;
+        inss = vec![Literal(1), Literal(0), ALU(alu)];
+        e_cpu = default_cpu.clone();
+        e_cpu.pc = 3;
+        e_cpu.st0 = 1;
+        e_cpu.d.push(0);
+        e_cpu.d.push(1);
+        e_cpu.d.sp = 1;
+        e_cpu.memory[0] = 1;
+        test_cases.push(Eval { inss, e_cpu });
+
+        for s in test_cases.iter() {
+            let mut cpu = default_cpu.clone();
+            for ins in &s.inss {
+                let _ = cpu.execute(&ins);
+            }
+            cmp(&s.e_cpu, &cpu);
+        }
     }
 }
