@@ -121,10 +121,14 @@ impl<T: IO> CPU<T> {
     }
 
     pub fn run(&mut self) -> Result<(), String> {
+        // for testing
         let mut cyles = 0u32;
         let mut cnt = 0u16;
+
         loop {
             let ins = self.fetch().or_else(|e| Err(e))?;
+
+            // test forth and the console
             cyles = cyles.wrapping_add(1);
             if cyles == 1_000_000 {
                 cnt += 1;
@@ -137,6 +141,8 @@ impl<T: IO> CPU<T> {
                 }
                 cyles = 0;
             }
+
+
             self.execute(&ins)?
         }
     }
