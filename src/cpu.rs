@@ -123,20 +123,12 @@ impl<T: IO> CPU<T> {
     pub fn run(&mut self) -> Result<(), String> {
         // let mut cnt = 0;
         loop {
-            if let Ok(ins) = self.fetch() {
-                // if cnt <= 10000 {
-                //     cnt += 1;
-                //     println!("cnt = {:<6} => {}", cnt, ins.show());
-                // }
-                self.execute(&ins)?
-                //     if let Err(e) = self.execute(&ins) {
-                //         if e == "bye" {
-                //             break;
-                //         }
-                //     }
-            } else {
-                return Err("invalid instruction fetch".to_string())
-            }
+            let ins = self.fetch().or_else(|e| Err(e))?;
+            // if cnt <= 100 {
+            //     cnt += 1;
+            //     println!("cnt = {:<6} => {}", cnt, ins.show());
+            // }
+            self.execute(&ins)?
         }
     }
 
