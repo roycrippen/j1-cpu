@@ -35,7 +35,7 @@ pub struct CPU<T: IO> {
 
 #[allow(dead_code)]
 impl<T: IO> CPU<T> {
-    fn new(console: Console<T>) -> Self {
+    pub fn new(console: Console<T>) -> Self {
         CPU {
             memory: Box::new([0u16; 8192]),
             pc: 0,
@@ -120,16 +120,22 @@ impl<T: IO> CPU<T> {
         Ok(())
     }
 
-    fn run(&mut self) {
+    pub fn run(&mut self) -> Result<(), String> {
+        // let mut cnt = 0;
         loop {
             if let Ok(ins) = self.fetch() {
-                if let Err(e) = self.execute(&ins) {
-                    if e == "bye" {
-                        break;
-                    }
-                }
+                // if cnt <= 10000 {
+                //     cnt += 1;
+                //     println!("cnt = {:<6} => {}", cnt, ins.show());
+                // }
+                self.execute(&ins)?
+                //     if let Err(e) = self.execute(&ins) {
+                //         if e == "bye" {
+                //             break;
+                //         }
+                //     }
             } else {
-                break;
+                return Err("invalid instruction fetch".to_string())
             }
         }
     }
@@ -140,26 +146,26 @@ impl<T: IO> CPU<T> {
         let n = self.d.peek();  // N
         let r = self.r.peek();  // R
         match opcode {
-            OpCode::OpT => t,                      // T
-            OpCode::OpN => n,                      // N
-            OpCode::OpTplusN => t + n,             // T + N
-            OpCode::OpTandN => t & n,              // T & N
-            OpCode::OpTorN => t | n,               // T | N
-            OpCode::OpTxorN => t ^ n,              // T ^ N
-            OpCode::OpNotT => !t,                  //  !T
-            OpCode::OpNeqT => bool_value(n == t),  // N == T
-            OpCode::OpNleT => bool_value((n as i16) < (t as i16)),   // N < T
-            OpCode::OpNrshiftT => n >> (t & 0xf),  // N >> T
-            OpCode::OpTminus1 => t - 1,            // T - 1
-            OpCode::OpR => r,                      // R
-            OpCode::OpAtT => self.read_at(t),      // [T]
-            OpCode::OpNlshiftT => n << (t & 0xf),  // N << T
+            OpCode::OpT => t,                                           // T
+            OpCode::OpN => n,                                           // N
+            OpCode::OpTplusN => t.wrapping_add(n),                      // T + N
+            OpCode::OpTandN => t & n,                                   // T & N
+            OpCode::OpTorN => t | n,                                    // T | N
+            OpCode::OpTxorN => t ^ n,                                   // T ^ N
+            OpCode::OpNotT => !t,                                       //  !T
+            OpCode::OpNeqT => bool_value(n == t),                       // N == T
+            OpCode::OpNleT => bool_value((n as i16) < (t as i16)),      // N < T
+            OpCode::OpNrshiftT => n >> (t & 0xf),                       // N >> T
+            OpCode::OpTminus1 => t - 1,                                 // T - 1
+            OpCode::OpR => r,                                           // R
+            OpCode::OpAtT => self.read_at(t),                           // [T]
+            OpCode::OpNlshiftT => n << (t & 0xf),                       // N << T
             OpCode::OpDepth => (self.r.depth() << 8) | self.d.depth(),  // depth (dsp)
-            OpCode::OpNuleT => bool_value(n < t),  // Nu < T
+            OpCode::OpNuleT => bool_value(n < t),                       // Nu < T
         }
     }
 
-    fn load_bytes(&mut self, data: &mut Vec<u8>) -> Result<(), String> {
+    pub fn load_bytes(&mut self, data: &mut Vec<u8>) -> Result<(), String> {
         if data.len() % 2 != 0 {
             return Err("Odd number of bytes provided".to_string());
         }
@@ -178,7 +184,7 @@ impl<T: IO> CPU<T> {
         Ok(())
     }
 
-    fn load_bytes_from_file(&mut self, file_name: String) -> Result<(), String> {
+    pub fn load_bytes_from_file(&mut self, file_name: String) -> Result<(), String> {
         let mut f = File::open(file_name).expect("Can not find binary file");
         let xs = &mut Vec::new();
         f.read_to_end(xs).expect("Read file failed");
@@ -352,7 +358,6 @@ mod tests {
         cpu.memory[1] = 5;
         cpu.memory[2] = 10;
         test_cases.push((OpAtT, 0x5, cpu.clone()));
-
 
 
         for (opcode, expected_st0, cpu) in test_cases.iter() {

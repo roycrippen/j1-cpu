@@ -80,8 +80,8 @@ impl IO for MockConsole {
         xs
     }
 
-    fn write_byte(&mut self, _v: u8) {
-        unimplemented!()
+    fn write_byte(&mut self, v: u8) {
+        print!("{}", v as char)
     }
 }
 

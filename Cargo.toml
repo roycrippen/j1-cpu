@@ -9,8 +9,8 @@ path = "src/lib.rs"
 edition = "2018"
 
 [[bin]]
-name = "j1-functional-tests"
-path = "src/functional-tests.rs"
+name = "j1e-repl"
+path = "src/j1e_repl.rs"
 # required-features = ["build-binary"]
 
 [dependencies]

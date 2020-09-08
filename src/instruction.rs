@@ -103,10 +103,10 @@ impl Instruction {
 
     pub fn show(&self) -> String {
         match self {
-            Literal(v) => format!("LIT     {:0>4x}", v),
-            Jump(v) => format!("UBRANCH {:0>4x}", (v << 1)),
-            Conditional(v) => format!("0BRANCH {:0>4x}", (v << 1)),
-            Call(v) => format!("CALL    {:0>4x}", (v << 1)),
+            Literal(v) => format!("LIT     {:0>4X}", v),
+            Jump(v) => format!("UBRANCH {:0>4X}", (v << 1)),
+            Conditional(v) => format!("0BRANCH {:0>4X}", (v << 1)),
+            Call(v) => format!("CALL    {:0>4X}", (v << 1)),
             ALU(alu) => alu.show(),
         }
     }
@@ -115,10 +115,10 @@ impl Instruction {
 impl fmt::Display for Instruction {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Instruction::Jump(v) => write!(f, "Instruction::Jump(0x{:0>4x})", v),
-            Instruction::Conditional(v) => write!(f, "Instruction::Conditional(0x{:0>4x})", v),
-            Instruction::Call(v) => write!(f, "Instruction::Call(0x{:0>4x})", v),
-            Instruction::Literal(v) => write!(f, "Instruction::Literal(0x{:0>4x})", v),
+            Instruction::Jump(v) => write!(f, "Instruction::Jump(0x{:0>4X})", v),
+            Instruction::Conditional(v) => write!(f, "Instruction::Conditional(0x{:0>4X})", v),
+            Instruction::Call(v) => write!(f, "Instruction::Call(0x{:0>4X})", v),
+            Instruction::Literal(v) => write!(f, "Instruction::Literal(0x{:0>4X})", v),
             Instruction::ALU(v) => write!(f, "Instruction::ALU({:?})", *v),
         }
     }
