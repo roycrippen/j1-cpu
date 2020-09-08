@@ -1,7 +1,7 @@
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct Stack {
-    data: [u16; 32],
-    sp: i8,
+    pub data: [u16; 32],
+    pub sp: i8,
 }
 
 #[allow(dead_code)]
@@ -35,6 +35,7 @@ impl Stack {
         let last = (self.sp + 1) as usize;
         self.data[1..last].to_vec()
     }
+
 }
 
 #[cfg(test)]

@@ -74,7 +74,7 @@ pub fn decode_alu(v: u16) -> AluAttributes {
         r2pc: v & (1 << 12) != 0,
         t2n: v & (1 << 7) != 0,
         t2r: v & (1 << 6) != 0,
-        n2t: v & (1 << 5) != 0,
+        n2_at_t: v & (1 << 5) != 0,
         r_dir: EXPAND[((v >> 2) & 3) as usize],
         d_dir: EXPAND[((v >> 0) & 3) as usize],
     }
@@ -175,13 +175,13 @@ impl OpCode {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub struct AluAttributes {
-    opcode: OpCode,
-    r2pc: bool,
-    t2n: bool,
-    t2r: bool,
-    n2t: bool,
-    r_dir: i8,
-    d_dir: i8,
+    pub opcode: OpCode,
+    pub r2pc: bool,
+    pub t2n: bool,
+    pub t2r: bool,
+    pub n2_at_t: bool,
+    pub r_dir: i8,
+    pub d_dir: i8,
 }
 
 impl AluAttributes {
@@ -191,7 +191,7 @@ impl AluAttributes {
             if self.r2pc { ret = ret | 1 << 12 }
             if self.t2n { ret = ret | 1 << 7 }
             if self.t2r { ret = ret | 1 << 6 }
-            if self.n2t { ret = ret | 1 << 5 }
+            if self.n2_at_t { ret = ret | 1 << 5 }
             ret = ret | ((self.r_dir & 3) as u16) << 2;
             ret = ret | ((self.d_dir & 3) as u16) << 0;
             ret
@@ -206,7 +206,7 @@ impl AluAttributes {
         if self.r2pc { s = format!("{} R→PC", s) }
         if self.t2n { s = format!("{} T→N", s) }
         if self.t2r { s = format!("{} T→R", s) }
-        if self.n2t { s = format!("{} N→[T]", s) }
+        if self.n2_at_t { s = format!("{} N→[T]", s) }
         if self.r_dir != 0 { s = format!("{} r{:+}", s, self.r_dir) }
         if self.d_dir != 0 { s = format!("{} d{:+}", s, self.d_dir) }
         s
@@ -230,7 +230,7 @@ mod tests {
         // println!("default = {:?}", AluAttributes::default());
         assert_eq!(
             AluAttributes::default(),
-            AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 }
+            AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2_at_t: false, r_dir: 0, d_dir: 0 }
         );
     }
 
@@ -245,19 +245,19 @@ mod tests {
             (0x5fff, Call(0x1fff)),
             (0x8000, Literal(0x0000)),
             (0xffff, Literal(0x7fff)),
-            (0x6000, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
-            (0x6100, ALU(AluAttributes { opcode: OpN, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
-            (0x7000, ALU(AluAttributes { opcode: OpT, r2pc: true, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
-            (0x6080, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: true, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
-            (0x6040, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: true, n2t: false, r_dir: 0, d_dir: 0 })),
-            (0x6020, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: true, r_dir: 0, d_dir: 0 })),
-            (0x600c, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: -1, d_dir: 0 })),
-            (0x6004, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 1, d_dir: 0 })),
-            (0x6003, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: -1 })),
-            (0x6001, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 1 })),
-            (0x6f00, ALU(AluAttributes { opcode: OpNuleT, r2pc: false, t2n: false, t2r: false, n2t: false, r_dir: 0, d_dir: 0 })),
-            (0x70e5, ALU(AluAttributes { opcode: OpT, r2pc: true, t2n: true, t2r: true, n2t: true, r_dir: 1, d_dir: 1 })),
-            (0x7fef, ALU(AluAttributes { opcode: OpNuleT, r2pc: true, t2n: true, t2r: true, n2t: true, r_dir: -1, d_dir: -1 })),
+            (0x6000, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2_at_t: false, r_dir: 0, d_dir: 0 })),
+            (0x6100, ALU(AluAttributes { opcode: OpN, r2pc: false, t2n: false, t2r: false, n2_at_t: false, r_dir: 0, d_dir: 0 })),
+            (0x7000, ALU(AluAttributes { opcode: OpT, r2pc: true, t2n: false, t2r: false, n2_at_t: false, r_dir: 0, d_dir: 0 })),
+            (0x6080, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: true, t2r: false, n2_at_t: false, r_dir: 0, d_dir: 0 })),
+            (0x6040, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: true, n2_at_t: false, r_dir: 0, d_dir: 0 })),
+            (0x6020, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2_at_t: true, r_dir: 0, d_dir: 0 })),
+            (0x600c, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2_at_t: false, r_dir: -1, d_dir: 0 })),
+            (0x6004, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2_at_t: false, r_dir: 1, d_dir: 0 })),
+            (0x6003, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2_at_t: false, r_dir: 0, d_dir: -1 })),
+            (0x6001, ALU(AluAttributes { opcode: OpT, r2pc: false, t2n: false, t2r: false, n2_at_t: false, r_dir: 0, d_dir: 1 })),
+            (0x6f00, ALU(AluAttributes { opcode: OpNuleT, r2pc: false, t2n: false, t2r: false, n2_at_t: false, r_dir: 0, d_dir: 0 })),
+            (0x70e5, ALU(AluAttributes { opcode: OpT, r2pc: true, t2n: true, t2r: true, n2_at_t: true, r_dir: 1, d_dir: 1 })),
+            (0x7fef, ALU(AluAttributes { opcode: OpNuleT, r2pc: true, t2n: true, t2r: true, n2_at_t: true, r_dir: -1, d_dir: -1 })),
         ];
         for (bin, expected_instruction) in test_cases.iter() {
             let decoded = decode(*bin).unwrap();

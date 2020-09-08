@@ -2,6 +2,7 @@ use std::io::{Cursor, Read, Write};
 use std::str;
 
 #[allow(dead_code)]
+#[derive(Clone)]
 pub struct Console<T: IO> {
     pub buf: T,
     pub should_log: bool,
