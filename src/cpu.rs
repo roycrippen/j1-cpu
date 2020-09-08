@@ -59,7 +59,7 @@ impl<T: IO> CPU<T> {
         }
         match addr {
             0x7000 => self.console.buf.write_byte(value as u8),  // key
-            0x7001 => return Err("bye".to_string()),             // bye
+            0x7002 => return Err("bye".to_string()),             // bye
             _ => ()
         }
         Ok(())
@@ -71,7 +71,7 @@ impl<T: IO> CPU<T> {
         }
         match addr {
             0x7000 => self.console.buf.read_byte().unwrap_or(0) as u16, // tx!
-            0x7001 => self.console.buf.buf_len() as u16,                // ?rx
+            0x7001 => self.console.buf.buf_has_char(),                  // ?rx returns 1 or 0
             _ => 0 as u16 // error
         }
     }
@@ -121,13 +121,22 @@ impl<T: IO> CPU<T> {
     }
 
     pub fn run(&mut self) -> Result<(), String> {
-        // let mut cnt = 0;
+        let mut cyles = 0u32;
+        let mut cnt = 0u16;
         loop {
             let ins = self.fetch().or_else(|e| Err(e))?;
-            // if cnt <= 100 {
-            //     cnt += 1;
-            //     println!("cnt = {:<6} => {}", cnt, ins.show());
-            // }
+            cyles = cyles.wrapping_add(1);
+            if cyles == 1_000_000 {
+                cnt += 1;
+                if cnt < 6 {
+                    let mut cmds: Vec<u8> = "10 2 8  + * .\n".bytes().collect();
+                    self.console.read(&mut cmds);
+                } else {
+                    let mut cmds: Vec<u8> = "bye\n".bytes().collect();
+                    self.console.read(&mut cmds);
+                }
+                cyles = 0;
+            }
             self.execute(&ins)?
         }
     }
@@ -148,7 +157,7 @@ impl<T: IO> CPU<T> {
             OpCode::OpNeqT => bool_value(n == t),                       // N == T
             OpCode::OpNleT => bool_value((n as i16) < (t as i16)),      // N < T
             OpCode::OpNrshiftT => n >> (t & 0xf),                       // N >> T
-            OpCode::OpTminus1 => t - 1,                                 // T - 1
+            OpCode::OpTminus1 => t.wrapping_sub(1),                     // T - 1
             OpCode::OpR => r,                                           // R
             OpCode::OpAtT => self.read_at(t),                           // [T]
             OpCode::OpNlshiftT => n << (t & 0xf),                       // N << T
@@ -230,7 +239,7 @@ mod tests {
         assert_eq!(3650, cpu.read_at(12));
 
         let mut cmds: Vec<u8> = "1 2 + .s\n".bytes().collect();
-        cpu.console.buf.load_buf(&mut cmds);
+        cpu.console.read(&mut cmds);
 
         // 0x7000 => tx!,  0x7001 => ?rx
         assert_eq!(9, cpu.read_at(0x7001));
