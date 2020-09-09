@@ -270,13 +270,13 @@ mod tests {
     fn instruction_value_compile_show() {
         let test_cases = [
             (0x0000, 0, 0, "UBRANCH 0000".to_string()),
-            (0x1fff, 8191, 8191, "UBRANCH 3ffe".to_string()),
+            (0x1fff, 8191, 8191, "UBRANCH 3FFE".to_string()),
             (0x2000, 0, 8192, "0BRANCH 0000".to_string()),
-            (0x3fff, 8191, 16383, "0BRANCH 3ffe".to_string()),
+            (0x3fff, 8191, 16383, "0BRANCH 3FFE".to_string()),
             (0x4000, 0, 16384, "CALL    0000".to_string()),
-            (0x5fff, 8191, 24575, "CALL    3ffe".to_string()),
+            (0x5fff, 8191, 24575, "CALL    3FFE".to_string()),
             (0x8000, 0, 32768, "LIT     0000".to_string()),
-            (0xffff, 32767, 65535, "LIT     7fff".to_string()),
+            (0xffff, 32767, 65535, "LIT     7FFF".to_string()),
             (0x6000, 0, 24576, "ALU     T".to_string()),
             (0x6100, 256, 24832, "ALU     N".to_string()),
             (0x7000, 4096, 28672, "ALU     T R→PC".to_string()),

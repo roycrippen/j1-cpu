@@ -1,13 +1,10 @@
-use std::fs::File;
-use std::io::Read;
-use std::path::PathBuf;
-
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::console::{Console, IO, MockConsole};
+use crate::console::{Console, IO};
 use crate::instruction::{decode, Instruction, OpCode};
 use crate::instruction::Instruction::{ALU, Call, Conditional, Jump, Literal};
 use crate::stack::Stack;
+use std::io::{ErrorKind, Error};
 
 const IO_MASK: u16 = 3 << 14;
 
@@ -30,7 +27,7 @@ pub struct CPU<T: IO> {
     r: Stack,
 
     // io console
-    console: Console<T>,
+    pub console: Console<T>,
 }
 
 #[allow(dead_code)]
@@ -46,33 +43,13 @@ impl<T: IO> CPU<T> {
         }
     }
 
-    fn reset(&mut self) {
-        self.pc = 0;
-        self.st0 = 0;
-        self.d = Stack::default();
-        self.r = Stack::default();
-    }
-
-    fn write_at(&mut self, addr: u16, value: u16) -> Result<(), String> {
-        if addr & IO_MASK == 0 {
-            self.memory[(addr >> 1) as usize] = value;
+    pub fn run(&mut self, mut commands: Vec<u8>) -> Result<(), String> {
+        if commands.len() > 0 {
+            self.console.load(&mut commands);
         }
-        match addr {
-            0x7000 => self.console.buf.write_byte(value as u8),  // key
-            0x7002 => return Err("bye".to_string()),             // bye
-            _ => ()
-        }
-        Ok(())
-    }
-
-    fn read_at(&mut self, addr: u16) -> u16 {
-        if addr & IO_MASK == 0 {
-            return self.memory[(addr >> 1) as usize];
-        }
-        match addr {
-            0x7000 => self.console.buf.read_byte().unwrap_or(0) as u16, // tx!
-            0x7001 => self.console.buf.buf_has_char(),                  // ?rx returns 1 or 0
-            _ => 0 as u16 // error
+        loop {
+            let ins = self.fetch().or_else(|e| Err(e))?;
+            self.execute(&ins)?
         }
     }
 
@@ -120,32 +97,33 @@ impl<T: IO> CPU<T> {
         Ok(())
     }
 
-    pub fn run(&mut self) -> Result<(), String> {
-        // for testing
-        let cycle_cnt = 10_000_000;
-        let mut cyles = 0u32;
-        let mut cnt = 0u16;
-        println!("Will run a forth expression every 50_000_000 cpu cycles 5 times.");
+    fn reset(&mut self) {
+        self.pc = 0;
+        self.st0 = 0;
+        self.d = Stack::default();
+        self.r = Stack::default();
+    }
 
-        loop {
-            let ins = self.fetch().or_else(|e| Err(e))?;
+    fn write_at(&mut self, addr: u16, value: u16) -> Result<(), String> {
+        if addr & IO_MASK == 0 {
+            self.memory[(addr >> 1) as usize] = value;
+        }
+        match addr {
+            0x7000 => self.console.write(value as u8),  // key
+            0x7002 => return Err("bye".to_string()),             // bye
+            _ => ()
+        }
+        Ok(())
+    }
 
-            // test forth and the console
-            cyles = cyles.wrapping_add(1);
-            if cyles == cycle_cnt {
-                cnt += 1;
-                if cnt < 6 {
-                    let mut cmds: Vec<u8> = "10 2 8  + * .\n".bytes().collect();
-                    self.console.read(&mut cmds);
-                } else {
-                    let mut cmds: Vec<u8> = "bye\n".bytes().collect();
-                    self.console.read(&mut cmds);
-                }
-                cyles = 0;
-            }
-
-
-            self.execute(&ins)?
+    fn read_at(&mut self, addr: u16) -> u16 {
+        if addr & IO_MASK == 0 {
+            return self.memory[(addr >> 1) as usize];
+        }
+        match addr {
+            0x7000 => self.console.read().unwrap_or(0) as u16, // tx!
+            0x7001 => self.console.buf.buf_has_char(),         // ?rx returns 1 or 0
+            _ => 0 as u16 // error
         }
     }
 
@@ -174,56 +152,49 @@ impl<T: IO> CPU<T> {
         }
     }
 
-    pub fn load_bytes(&mut self, data: &mut Vec<u8>) -> Result<(), String> {
+    pub fn load_bytes(&mut self, data: &Vec<u8>) -> std::io::Result<()> {
         if data.len() % 2 != 0 {
-            return Err("Odd number of bytes provided".to_string());
+            return Err(Error::new(ErrorKind::Other, "Odd number of bytes provided"));
         }
 
         let size = data.len() >> 1;
         if size >= self.memory.len() {
-            return Err("Binary too big for cpu memory to load".to_string());
+            return Err(Error::new(ErrorKind::Other, "Binary too big for cpu memory to load"));
         }
 
         let mut current = &data[..];
         let mut i = 0;
         while current.len() > 0 {
-            self.memory[i] = current.read_u16::<LittleEndian>().expect("Could not convert binary");
+            self.memory[i] = current.read_u16::<LittleEndian>()?;
             i += 1;
         }
         Ok(())
     }
 
-    pub fn load_bytes_from_file(&mut self, file_name: String) -> Result<(), String> {
-        let mut f = File::open(file_name).expect("Can not find binary file");
-        let xs = &mut Vec::new();
-        f.read_to_end(xs).expect("Read file failed");
-        self.load_bytes(xs)?;
-
-        Ok(())
-    }
 }
-
-// helpers
-pub fn load_j1e_bin() -> CPU<MockConsole> {
-    let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    p.push("resources");
-    p.push("j1e.bin");
-    let full_file_name = p.display().to_string();
-
-    let console = Console::<MockConsole>::new(true);
-    let mut cpu = CPU::new(console);
-    cpu.load_bytes_from_file(full_file_name).unwrap();
-    cpu
-}
-
 
 #[cfg(test)]
 mod tests {
-    use crate::console::{Console, IO, MockConsole};
-    use crate::cpu::{CPU, load_j1e_bin};
+    use std::path::PathBuf;
+
+    use crate::console::{Console, MockConsole};
+    use crate::cpu::CPU;
+    use crate::instruction::{AluAttributes, Instruction, OpCode};
+    use crate::instruction::Instruction::{ALU, Call, Conditional, Jump, Literal};
     use crate::instruction::OpCode::*;
-    use crate::instruction::{Instruction, AluAttributes, OpCode};
-    use crate::instruction::Instruction::{Jump, Literal, Conditional, Call, ALU};
+    use crate::utils::read_binary;
+
+    fn load_binary() -> CPU<MockConsole> {
+        let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        p.push("resources");
+        p.push("j1e.bin");
+        let full_file_name = p.display().to_string();
+
+        let console = Console::<MockConsole>::new(true);
+        let mut cpu = CPU::new(console);
+        cpu.load_bytes(&mut read_binary(full_file_name).unwrap()).unwrap();
+        cpu
+    }
 
     #[test]
     fn reset() {
@@ -242,19 +213,18 @@ mod tests {
 
     #[test]
     fn reaad_at() {
-        let mut cpu = load_j1e_bin();
+        let mut cpu = load_binary();
         assert_eq!(16128, cpu.read_at(11));
         assert_eq!(3650, cpu.read_at(12));
 
         let mut cmds: Vec<u8> = "1 2 + .s\n".bytes().collect();
-        cpu.console.read(&mut cmds);
+        cpu.console.load(&mut cmds);
 
         // 0x7000 => tx!,  0x7001 => ?rx
-        assert_eq!(9, cpu.read_at(0x7001));
+        assert_eq!(1, cpu.read_at(0x7001));
         assert_eq!('1' as u16, cpu.read_at(0x7000));
         assert_eq!(' ' as u16, cpu.read_at(0x7000));
         assert_eq!('2' as u16, cpu.read_at(0x7000));
-        assert_eq!(6, cpu.read_at(0x7001));
     }
 
     #[test]
@@ -272,7 +242,7 @@ mod tests {
 
     #[test]
     fn load_bytes_from_file() {
-        let cpu = load_j1e_bin();
+        let cpu = load_binary();
         let xs = &cpu.memory[0..8];
         assert_eq!([3306, 16, 0, 0, 0, 16128, 3650, 3872], xs);
         // println!("first {} items memory: {:?}", xs.len(), xs);
@@ -280,7 +250,7 @@ mod tests {
 
     #[test]
     fn new_st0_1() {
-        let mut cpu = load_j1e_bin();
+        let mut cpu = load_binary();
 
         let test_cases = [
             (OpN, 66u16, 16000u16, 6620u16, 16000u16),
