@@ -9,8 +9,13 @@ path = "src/lib.rs"
 edition = "2018"
 
 [[bin]]
-name = "j1e-repl"
-path = "src/j1e_repl.rs"
+name = "j1_logging"
+path = "bin/j1_logging.rs"
+
+[[bin]]
+name = "j1_repl"
+path = "bin/j1_repl.rs"
+
 # required-features = ["build-binary"]
 
 [dependencies]
