@@ -122,15 +122,17 @@ impl<T: IO> CPU<T> {
 
     pub fn run(&mut self) -> Result<(), String> {
         // for testing
+        let cycle_cnt = 10_000_000;
         let mut cyles = 0u32;
         let mut cnt = 0u16;
+        println!("Will run a forth expression every 50_000_000 cpu cycles 5 times.");
 
         loop {
             let ins = self.fetch().or_else(|e| Err(e))?;
 
             // test forth and the console
             cyles = cyles.wrapping_add(1);
-            if cyles == 1_000_000 {
+            if cyles == cycle_cnt {
                 cnt += 1;
                 if cnt < 6 {
                     let mut cmds: Vec<u8> = "10 2 8  + * .\n".bytes().collect();

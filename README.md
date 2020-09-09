@@ -5,9 +5,9 @@ Will be migrated to a variant of [J1-hacked](https://www.fpgarelated.com/showart
 Ported from [j1](https://github.com/dim13/j1) written in go. <br>
 requires [rustup](https://rustup.rs/) <br>
 
-### forth emulator
+### j1 forth emulator
 ```shell
-# todo
+cargo run --release
 ```
 
 ### tests
@@ -15,14 +15,19 @@ requires [rustup](https://rustup.rs/) <br>
 cargo test
 ```
 
+### functional test
+```shell
+
+```
+
 ### todo
 | Task              | Done |
 | :---------------  | :------: |
 | stack             | &#x2714; |
 | instructions      | &#x2714; |
-| cpu               |  |
+| cpu               | &#x2714; |
+| functional test   | |
 | dump bin to asm   |  |
-| functional tests  |  |
 | j1 forth emulator |  |
 
 
