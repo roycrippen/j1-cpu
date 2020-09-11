@@ -15,11 +15,12 @@ pub fn read_binary(file_name: &String) -> std::io::Result<Vec<u8>> {
     Ok(xs.clone())
 }
 
-pub fn write_log_file(file_name: &String, xs: &Vec<String>) -> std::io::Result<()> {
+pub fn write_log_file(file_name: &String, s: &String) -> std::io::Result<()> {
     let mut f = File::create(file_name)?;
-    for x in xs {
-        f.write(x.as_ref())?;
-        f.write("\n".as_bytes())?;
-    }
+    // for x in xs {
+    //     f.write(x.as_ref())?;
+    //     f.write("\n".as_bytes())?;
+    // }
+    f.write_all(s.as_ref())?;
     Ok(())
 }

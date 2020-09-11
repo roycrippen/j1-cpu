@@ -30,11 +30,11 @@ fn main() -> std::io::Result<()> {
     }
 
     // make a j1 cpu
-    let console: Console<MockConsole> = Console::new(true);
+    let console = Console {reader: script.as_slice(),writer: Vec::new(),log:Vec::new()};
     let mut cpu = CPU::new(console);
     cpu.load_bytes(&binary)?;
 
-    match cpu.run(script) {
+    match cpu.run() {
         Ok(_) => Ok(()),
         Err(e) => {
             if e == "bye" {
