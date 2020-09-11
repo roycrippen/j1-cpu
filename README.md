@@ -5,20 +5,22 @@ Will be migrated to a variant of [J1-hacked](https://www.fpgarelated.com/showart
 Ported from [j1](https://github.com/dim13/j1) written in go. <br>
 requires [rustup](https://rustup.rs/) <br>
 
-### j1 forth emulator
+
+### build
 ```shell
-cargo run --release
+cargo build --release
 ```
 
-### tests
+### test
 ```shell
 cargo test
 ```
 
-### functional test
+### run j1 forth repl
 ```shell
-
+./target/release/j1_repl
 ```
+
 
 ### todo
 | Task              | Done |
@@ -26,8 +28,9 @@ cargo test
 | stack             | &#x2714; |
 | instructions      | &#x2714; |
 | cpu               | &#x2714; |
-| functional test   | |
 | dump bin to asm   |  |
-| j1 forth emulator |  |
+| j1 forth emulator | &#x2714; |
+| args to j1_repl   |  |
+| args to j1_logger |  |
 
 
