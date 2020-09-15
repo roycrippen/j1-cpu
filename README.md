@@ -47,15 +47,14 @@ OPTIONS:
 
 
 ### todo
-| Task              | Done |
-| :---------------  | :------: |
-| stack             | &#x2714; |
-| instructions      | &#x2714; |
-| cpu               | &#x2714; |
-| dump bin to asm   |  |
-| j1 forth emulator | &#x2714; |
-| args fo j1        | &#x2714; |
-| j1 gRPV service   |  |
-| port to j1-hacked | |
-
-
+| Task                  | Done |
+| :-------------------  | :------: |
+| stack                 | &#x2714; |
+| instructions          | &#x2714; |
+| cpu                   | &#x2714; |
+| dump bin to asm       |  |
+| j1 forth emulator     | &#x2714; |
+| args fo j1            | &#x2714; |
+| j1 gRPC service       |  |
+| port to j1-hacked     | |
+| add verbosity levels  | |
