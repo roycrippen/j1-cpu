@@ -8,6 +8,28 @@ use std::io::{ErrorKind, Error};
 
 const IO_MASK: u16 = 3 << 14;
 
+/// CPU
+///
+/// Implementation of J1 CPU designed for Forth
+///
+/// # Example
+///
+/// ```
+/// use crate::cpu::CPU;
+///
+/// // create a new CPU
+/// let mut cpu = CPU::new();
+///
+/// // load a binary Forth os
+/// cpu.load_bytes(&j1e_bin::J1E_BIN.to_vec()).unwrap();
+///
+/// // run a Forth script
+/// cpu.run(b"2 3 * .\n".to_vec()).unwrap();
+///
+/// let s = cpu.console.get_log();
+/// assert!(s.ends_with(" 6 ok\n"));
+///
+/// ```
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct CPU {

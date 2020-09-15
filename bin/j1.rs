@@ -11,7 +11,7 @@ fn main() -> std::io::Result<()> {
     println!("Starting j1...\n");
 
     let j1_args = J1Args::new();
-    println!("{:?}", j1_args);
+    // println!("{:?}", j1_args);
     if !j1_args.repl && j1_args.script_file_name.is_empty() {
         return Err(Error::new(ErrorKind::InvalidInput, "Must provide a script file if not running repl"))
     }

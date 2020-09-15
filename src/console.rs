@@ -1,6 +1,10 @@
 use std::io::{Write, Cursor, Read};
 use std::iter::FromIterator;
 
+/// Console
+///
+/// IO console for J1 cpu
+///
 #[allow(dead_code)]
 #[derive(Clone)]
 pub struct Console {
@@ -11,6 +15,12 @@ pub struct Console {
 }
 
 impl Console {
+    /// Constructs a new, empty `Console`.
+    /// # Examples
+    ///
+    /// ```
+    /// let mut console = Console::new();
+    /// ```
     pub fn new() -> Self {
         Console {
             ar1: [0u8],
@@ -32,6 +42,19 @@ impl Console {
         self.ar1[0] as char
     }
 
+    /// Loads the console read buffer with some bytes
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let mut console = Console::new();
+    /// let xs = b"1 2 + .\n".to_vec();
+    /// console.load(&mut xs.clone());
+    /// let ys = console.reader.get_ref();
+    /// assert_eq!(xs.len(), ys.len());
+    /// assert_eq!(xs, *ys);
+    ///
+    /// ```
     pub fn load(&mut self, xs: &mut Vec<u8>) {
         let buf = self.reader.get_mut();
         buf.clear();
