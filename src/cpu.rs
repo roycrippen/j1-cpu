@@ -180,13 +180,11 @@ impl CPU {
 mod tests {
     use std::path::PathBuf;
 
-    use crate::console::{Console};
     use crate::cpu::CPU;
     use crate::instruction::{Instruction, OpCode, AluAttributes};
     use crate::instruction::Instruction::{ALU, Call, Conditional, Jump, Literal};
     use crate::instruction::OpCode::*;
     use crate::utils::read_binary;
-    use std::io::{BufRead, Write};
     use crate::j1e_bin;
 
     fn load_binary() -> CPU {
@@ -203,17 +201,17 @@ mod tests {
     #[test]
     fn run() {
         let mut cpu = CPU::new();
-        cpu.load_bytes(&j1e_bin::J1E_BIN.to_vec());
+        cpu.load_bytes(&j1e_bin::J1E_BIN.to_vec()).unwrap();
 
         cpu.run(b"2 3 * .\n".to_vec()).unwrap();
         let s = cpu.console.get_log();
         // println!("log = {:?}", s);
-        assert!(s.ends_with(" 6 ok\r\n"));
+        assert!(s.ends_with(" 6 ok\n"));
 
         cpu.run(b"1 2 3 4 5 .s\n".to_vec()).unwrap();
         let s = cpu.console.get_log();
         // println!("log = {:?}", s);
-        assert!(s.ends_with(" 1 2 3 4 5<tos ok\r\n"));
+        assert!(s.ends_with(" 1 2 3 4 5<tos ok\n"));
     }
 
     #[test]
@@ -231,7 +229,7 @@ mod tests {
     }
 
     #[test]
-    fn reaad_at() {
+    fn read_at() {
         let mut cpu = load_binary();
         let mut xs = b"1 2 + .s\n".to_vec();
         cpu.console.load(&mut xs);
