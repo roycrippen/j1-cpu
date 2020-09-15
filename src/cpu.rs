@@ -4,13 +4,13 @@ use crate::console::Console;
 use crate::instruction::{decode, Instruction, OpCode};
 use crate::instruction::Instruction::{ALU, Call, Conditional, Jump, Literal};
 use crate::stack::Stack;
-use std::io::{ErrorKind, Error, BufRead, Write};
+use std::io::{ErrorKind, Error};
 
 const IO_MASK: u16 = 3 << 14;
 
 #[allow(dead_code)]
 #[derive(Clone)]
-pub struct CPU<R, W> {
+pub struct CPU {
     // 0..0x3fff RAM, 0x4000..0x7fff mem-mapped I/O
     memory: Box<[u16; 8192]>,
 
@@ -27,31 +27,34 @@ pub struct CPU<R, W> {
     r: Stack,
 
     // io console
-    pub console: Console<R, W>,
+    pub console: Console,
 }
 
 #[allow(dead_code)]
-impl<R: BufRead, W: Write> CPU<R, W> {
-    pub fn new(console: Console<R, W>) -> Self {
+impl CPU {
+    pub fn new() -> Self {
         CPU {
             memory: Box::new([0u16; 8192]),
             pc: 0,
             st0: 0,
             d: Stack::default(),
             r: Stack::default(),
-            console,
+            console: Console::new(),
         }
     }
 
-    // pub fn run(&mut self, mut commands: Vec<u8>) -> Result<(), String> {
-      pub fn run(&mut self) -> Result<(), String> {
-        // if commands.len() > 0 {
-        //     self.console.load(&mut commands);
-        // }
+    pub fn run(&mut self, mut commands: Vec<u8>) -> Result<(), String> {
+        commands.push(b' ');
+        // commands.push(b'\n');
+        self.console.load(&mut commands);
         loop {
-            let ins = self.fetch().or_else(|e| Err(e))?;
-            self.execute(&ins)?
+            let instruction = self.fetch().or_else(|e| Err(e))?;
+            self.execute(&instruction)?;
+            if self.console.reader.position() == self.console.reader.get_ref().len() as u64 {
+                break;
+            }
         }
+        Ok(())
     }
 
     fn fetch(&self) -> Result<Instruction, String> {
@@ -111,7 +114,7 @@ impl<R: BufRead, W: Write> CPU<R, W> {
         }
         match addr {
             0x7000 => self.console.write_char(value as u8),  // key
-            0x7002 => return Err("bye".to_string()),             // bye
+            0x7002 => return Err("bye".to_string()),         // bye
             _ => ()
         }
         Ok(())
@@ -184,41 +187,54 @@ mod tests {
     use crate::instruction::OpCode::*;
     use crate::utils::read_binary;
     use std::io::{BufRead, Write};
+    use crate::j1e_bin;
 
-    fn load_binary<R: BufRead, W:Write>(console: Console<R, W>) -> CPU<R, W> {
+    fn load_binary() -> CPU {
         let mut p = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         p.push("resources");
         p.push("j1e.bin");
         let full_file_name = p.display().to_string();
 
-        // let console = Console::<MockConsole>::new(true);
-        let mut cpu = CPU::new(console);
+        let mut cpu = CPU::new();
         cpu.load_bytes(&mut read_binary(&full_file_name).unwrap()).unwrap();
         cpu
     }
 
+    #[test]
+    fn run() {
+        let mut cpu = CPU::new();
+        cpu.load_bytes(&j1e_bin::J1E_BIN.to_vec());
+
+        cpu.run(b"2 3 * .\n".to_vec()).unwrap();
+        let s = cpu.console.get_log();
+        // println!("log = {:?}", s);
+        assert!(s.ends_with(" 6 ok\r\n"));
+
+        cpu.run(b"1 2 3 4 5 .s\n".to_vec()).unwrap();
+        let s = cpu.console.get_log();
+        // println!("log = {:?}", s);
+        assert!(s.ends_with(" 1 2 3 4 5<tos ok\r\n"));
+    }
 
     #[test]
     fn reset() {
-        let xs: [u8; 1] = [0];
-        let console = Console { reader: &xs[..], writer: Vec::new(), log: Vec::new() };
-        let mut cpu = CPU::new(console);
+        let mut cpu = CPU::new();
 
         cpu.pc = 100;
         cpu.st0 = 10;
         cpu.d.move_sp(10);
         cpu.r.move_sp(20);
-        debug_assert_eq!(140, cpu.pc + cpu.st0 + cpu.d.depth() + cpu.r.depth());
+        assert_eq!(140, cpu.pc + cpu.st0 + cpu.d.depth() + cpu.r.depth());
 
         cpu.reset();
-        debug_assert_eq!(0, cpu.pc + cpu.st0 + cpu.d.depth() + cpu.r.depth());
+        assert_eq!(0, cpu.pc + cpu.st0 + cpu.d.depth() + cpu.r.depth());
     }
 
     #[test]
     fn reaad_at() {
-        let xs = b"1 2 + .s\n";
-        let console = Console { reader: &xs[..], writer: Vec::new(), log: Vec::new() };
-        let mut cpu = load_binary(console);
+        let mut cpu = load_binary();
+        let mut xs = b"1 2 + .s\n".to_vec();
+        cpu.console.load(&mut xs);
         assert_eq!(16128, cpu.read_at(11));
         assert_eq!(3650, cpu.read_at(12));
 
@@ -234,9 +250,7 @@ mod tests {
 
     #[test]
     fn load_bytes() {
-        let xs: [u8; 1] = [0];
-        let console = Console { reader: &xs[..], writer: Vec::new(), log: Vec::new() };
-        let mut cpu = CPU::new(console);
+        let mut cpu = CPU::new();
 
         let data = &mut vec![1, 2, 4, 8];
         cpu.load_bytes(data).unwrap();
@@ -248,9 +262,7 @@ mod tests {
 
     #[test]
     fn load_bytes_from_file() {
-        let xs: [u8; 1] = [0];
-        let console = Console { reader: &xs[..], writer: Vec::new(), log: Vec::new() };
-        let cpu = load_binary(console);
+        let cpu = load_binary();
         let xs = &cpu.memory[0..8];
         assert_eq!([3306, 16, 0, 0, 0, 16128, 3650, 3872], xs);
         // println!("first {} items memory: {:?}", xs.len(), xs);
@@ -258,9 +270,7 @@ mod tests {
 
     #[test]
     fn new_st0_1() {
-        let xs: [u8; 1] = [0];
-        let console = Console { reader: &xs[..], writer: Vec::new(), log: Vec::new() };
-        let mut cpu = load_binary(console);
+        let mut cpu = load_binary();
 
         let test_cases = [
             (OpN, 66u16, 16000u16, 6620u16, 16000u16),
@@ -299,10 +309,8 @@ mod tests {
 
     #[test]
     fn new_st0_2() {
-        let xs: [u8; 1] = [0];
-        let console = Console { reader: &xs[..], writer: Vec::new(), log: Vec::new() };
-        let default_cpu = CPU::new(console);
-        let mut test_cases: Vec<(OpCode, u16, CPU<&[u8], Vec<u8>>)> = vec![];
+        let default_cpu = CPU::new();
+        let mut test_cases: Vec<(OpCode, u16, CPU)> = vec![];
 
         let mut cpu = default_cpu.clone();
         cpu.st0 = 0x55;
@@ -358,7 +366,7 @@ mod tests {
 
     #[test]
     fn eval() {
-        let cmp = |expected: &CPU<&[u8], Vec<u8>>, result: &CPU<&[u8], Vec<u8>>| {
+        let cmp = |expected: &CPU, result: &CPU| {
             assert_eq!(expected.pc, result.pc);
             assert_eq!(expected.st0, result.st0);
             assert_eq!(expected.d.sp, result.d.sp);
@@ -366,11 +374,9 @@ mod tests {
             assert_eq!(expected.d.dump(), result.d.dump());
             assert_eq!(expected.r.dump(), result.r.dump());
         };
-        let xs: [u8; 1] = [0];
-        let console = Console { reader: &xs[..], writer: Vec::new(), log: Vec::new() };
-        let default_cpu = CPU::new(console);
+        let default_cpu = CPU::new();
 
-        struct Eval<'a> { inss: Vec<Instruction>, e_cpu: CPU<&'a[u8], Vec<u8>> }
+        struct Eval { inss: Vec<Instruction>, e_cpu: CPU }
         let mut test_cases: Vec<Eval> = vec![];
 
         // test 01

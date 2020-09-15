@@ -18,7 +18,31 @@ cargo test
 
 ### run j1 forth repl
 ```shell
-./target/release/j1_repl
+./target/release/j1 --repl
+```
+
+### j1 forth options
+```shell
+# help -h or --help
+# Note: results saved to <script_file>-log.txt if not running repl
+
+./target/release/j1 -h
+
+j1 1.0
+Roy Crippen
+J1 cpu emulator
+
+USAGE:
+    j1 [FLAGS] [OPTIONS]
+
+FLAGS:
+    -h, --help       Prints help information
+    -r, --repl       Run the J1 forth repl
+    -V, --version    Prints version information
+
+OPTIONS:
+    -b, --bin <bin_file>          Binary J1 forth imamge to load
+    -s, --script <script_file>    Forth script file to load and execute
 ```
 
 
@@ -30,7 +54,8 @@ cargo test
 | cpu               | &#x2714; |
 | dump bin to asm   |  |
 | j1 forth emulator | &#x2714; |
-| args to j1_repl   |  |
-| args to j1_logger |  |
+| args fo j1        | &#x2714; |
+| j1 gRPV service   |  |
+| port to j1-hacked | |
 
 
