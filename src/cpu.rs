@@ -196,6 +196,28 @@ impl CPU {
         }
         Ok(())
     }
+
+    pub fn dump_asm(&self, addr_start: u16, addr_end: u16) -> Vec<String> {
+        let mut xs = Vec::new();
+        xs.push("Address,Value,Instruction".to_string());
+        for addr in (addr_start..addr_end + 2).step_by(2) {
+            let v = self.memory[(addr >> 1) as usize];
+            let asm = decode(v).unwrap();
+            xs.push(format!("0x{:04X},0x{:04X},{}", addr, v, asm.show()));
+        }
+        xs
+    }
+
+    pub fn dump_ast(&self, addr_start: u16, addr_end: u16) -> Vec<String> {
+        let mut xs = Vec::new();
+        xs.push("Address,Value,Instruction".to_string());
+        for addr in (addr_start..addr_end + 2).step_by(2) {
+            let v = self.memory[(addr >> 1) as usize];
+            let asm = decode(v).unwrap();
+            xs.push(format!("0x{:04X},0x{:04X},{}", addr, v, asm));
+        }
+        xs
+    }
 }
 
 #[cfg(test)]
@@ -219,6 +241,40 @@ mod tests {
         cpu.load_bytes(&mut read_binary(&full_file_name).unwrap()).unwrap();
         cpu
     }
+
+
+    #[test]
+    fn dump_asm() {
+        let mut cpu = CPU::new();
+        cpu.load_bytes(&j1e_bin::J1E_BIN.to_vec()).unwrap();
+        let xs = cpu.dump_asm(0x00C2, 0x00C4);
+        // for x in xs.clone().iter() {
+        //     println!("{}", x)
+        // }
+        let expected = vec![
+            "Address,Value,Instruction",
+            "0x00C2,0x700C,ALU     T R→PC r-1",
+            "0x00C4,0x404E,CALL    009C",
+        ];
+        assert_eq!(expected, xs);
+    }
+
+    #[test]
+    fn dump_ast() {
+        let mut cpu = CPU::new();
+        cpu.load_bytes(&j1e_bin::J1E_BIN.to_vec()).unwrap();
+        let xs = cpu.dump_ast(0x00C2, 0x00C4);
+        // for x in xs.clone().iter() {
+        //     println!("{}", x)
+        // }
+        let expected = vec![
+            "Address,Value,Instruction",
+            "0x00C2,0x700C,Instruction::ALU(AluAttributes { opcode: OpT, r2pc: true, t2n: false, t2r: false, n2_at_t: false, r_dir: -1, d_dir: 0 })",
+            "0x00C4,0x404E,Instruction::Call(0x004E)",
+        ];
+        assert_eq!(expected, xs);
+    }
+
 
     #[test]
     fn run() {
