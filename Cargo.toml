@@ -13,8 +13,12 @@ name = "j1"
 path = "bin/j1.rs"
 
 [[bin]]
-name = "j1_service"
-path = "bin/j1_service.rs"
+name = "j1_example_compile_and_dump"
+path = "bin/j1_example_compile_and_dump.rs"
+
+[[bin]]
+name = "j1_dump"
+path = "bin/j1_dump.rs"
 
 [dependencies]
 byteorder = "1.3.4"
