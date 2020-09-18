@@ -66,14 +66,14 @@ OPTIONS:
 
 
 ### todo
-| Task                       | Done |
-| :------------------------  | :------: |
-| stack                      | &#x2714; |
-| instructions               | &#x2714; |
-| cpu                        | &#x2714; |
-| dump memory to asm and ast | &#x2714; |
-| j1 eforth emulator         | &#x2714; |
-| args fo j1                 | &#x2714; |
-| j1 gRPC service            |  |
-| port to j1-swap            |  |
-| add verbosity levels       |  |
+| Task                        | Done |
+| :------------------------   | :------: |
+| stack                       | &#x2714; |
+| instructions                | &#x2714; |
+| cpu                         | &#x2714; |
+| dump memory to asm and ast  | &#x2714; |
+| j1 emulator                 | &#x2714; |
+| arguments for j1 executable | &#x2714; |
+| j1 gRPC service             |  |
+| test with swap forth        |  |
+| add verbosity levels        |  |
