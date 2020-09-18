@@ -22,6 +22,12 @@ Help with executable arguments `<executable> -h` or `<executable> --help` <br>
 $ cargo test
 ```
 
+### document
+```shell
+$ cargo doc
+# open j1-cpu/target/doc/j1/index.html with browser
+```
+
 ### run j1 eforth repl
 ```shell
 # option -r or --repl
