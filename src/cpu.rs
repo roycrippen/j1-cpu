@@ -7,8 +7,8 @@ use crate::stack::Stack;
 use std::io::{ErrorKind, Error};
 
 const IO_MASK: u16 = 3 << 14;
-// const MEMORY_SIZE: usize = 8192;
-pub const MEMORY_SIZE: usize = 0x4000;
+pub const MEMORY_SIZE: usize = 0x2000;
+// pub const MEMORY_SIZE: usize = 0x4000;
 
 /// CPU
 ///
