@@ -7,6 +7,8 @@ use crate::stack::Stack;
 use std::io::{ErrorKind, Error};
 
 const IO_MASK: u16 = 3 << 14;
+// const MEMORY_SIZE: usize = 8192;
+pub const MEMORY_SIZE: usize = 0x4000;
 
 /// CPU
 ///
@@ -35,7 +37,7 @@ const IO_MASK: u16 = 3 << 14;
 #[derive(Clone)]
 pub struct CPU {
     // 0..0x3fff RAM, 0x4000..0x7fff mem-mapped I/O
-    memory: Box<[u16; 8192]>,
+    memory: Box<[u16; MEMORY_SIZE]>,
 
     // 13 bit program counter
     pc: u16,
@@ -57,7 +59,7 @@ pub struct CPU {
 impl CPU {
     pub fn new() -> Self {
         CPU {
-            memory: Box::new([0u16; 8192]),
+            memory: Box::new([0u16; MEMORY_SIZE]),
             pc: 0,
             st0: 0,
             d: Stack::default(),
@@ -185,6 +187,7 @@ impl CPU {
         }
 
         let size = data.len() >> 1;
+        let _len = self.memory.len();
         if size >= self.memory.len() {
             return Err(Error::new(ErrorKind::Other, "Binary too big for cpu memory to load"));
         }

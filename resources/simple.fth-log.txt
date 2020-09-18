@@ -1,0 +1,12 @@
+ ok
+
+eforth j1 v1.04
+2 3 + .s
+ 5<tos ok
+dup * .s
+ 19<tos ok
+dup * .s
+ 271<tos ok
+. 271 ok
+ ok
+3 4 + . 7 ok

@@ -9,9 +9,9 @@ use std::io;
 
 #[allow(unused_assignments)]
 fn main() -> std::io::Result<()> {
+    let args = Args::new();
     println!("Starting j1...\n");
 
-    let args = Args::new();
     // println!("{:?}", j1_args);
     if !args.repl && args.script_file_name.is_empty() {
         return Err(Error::new(ErrorKind::InvalidInput, "Must provide a script file if not running repl"))

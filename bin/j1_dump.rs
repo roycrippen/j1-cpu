@@ -107,7 +107,7 @@ impl Args {
         let addr_end_option = Arg::with_name("addr_end")
             .long("end") // allow --start
             .takes_value(true)
-            .default_value("0x2000")
+            .default_value("0x3000")
             .help("End memory address to dump, example 0X2000")
             .required(false);
 
@@ -138,7 +138,7 @@ impl Args {
         let without_prefix = raw.trim_start_matches("0x");
         let addr_end = u16::from_str_radix(without_prefix, 16).or_else(|_e| Err(&err)).unwrap();
 
-        if addr_start > addr_end || addr_end > 0x2000 {
+        if addr_start > addr_end || addr_end > j1::cpu::MEMORY_SIZE as u16 {
             return Err(clap::Error::with_description("Invalid addresses", clap::ErrorKind::InvalidValue));
         }
 
