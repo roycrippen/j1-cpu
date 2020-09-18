@@ -15,7 +15,8 @@ const IO_MASK: u16 = 3 << 14;
 /// # Example
 ///
 /// ```
-/// use crate::cpu::CPU;
+/// use j1::cpu::CPU;
+/// use j1::j1e_bin;
 ///
 /// // create a new CPU
 /// let mut cpu = CPU::new();

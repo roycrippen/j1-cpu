@@ -19,6 +19,8 @@ impl Console {
     /// # Examples
     ///
     /// ```
+    /// use j1::console::Console;
+    ///
     /// let mut console = Console::new();
     /// ```
     pub fn new() -> Self {
@@ -47,6 +49,8 @@ impl Console {
     /// # Examples
     ///
     /// ```
+    /// use j1::console::Console;
+    ///
     /// let mut console = Console::new();
     /// let xs = b"1 2 + .\n".to_vec();
     /// console.load(&mut xs.clone());
