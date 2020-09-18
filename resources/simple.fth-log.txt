@@ -10,3 +10,12 @@ dup * .s
 . 271 ok
  ok
 3 4 + . 7 ok
+ ok
+: fibonacci dup 2 < if drop 1 else dup 2 - recurse swap 1 - recurse + then ; ok
+: fibnums for i fibonacci u. next ; ok
+ ok
+5 fibonacci . 8 ok
+ ok
+6 fibnums . D 8 5 3 2 1 1 0 ok
+ ok
+ ok
