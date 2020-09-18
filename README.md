@@ -11,11 +11,10 @@ $ cargo install --path .
 ### executables
 Help with executable arguments `<executable> -h` or `<executable> --help` <br>
 
-| Name                        |  | Description |
-| :-------------------------  | --- | :------ |
-| j1                          | │ | j1 emulator |
-| j1_dump                     | │ | dump j1 cpu memory in assembly or instruction AST format |
-| j1_example_compile_and_dump | │ | example of programmatically using j1 |
+| Name                        | Description |
+| j1                          | j1 emulator |
+| j1_dump                     | dump j1 cpu memory in assembly or instruction AST format |
+| j1_example_compile_and_dump | example of programmatically using j1 |
 
 ### test
 ```shell
