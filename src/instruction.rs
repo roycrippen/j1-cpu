@@ -1,4 +1,5 @@
 use std::fmt;
+
 use crate::instruction::Instruction::*;
 use crate::instruction::OpCode::*;
 
@@ -81,26 +82,6 @@ pub fn decode_alu(v: u16) -> AluAttributes {
 }
 
 impl Instruction {
-    pub fn value(&self) -> u16 {
-        match self {
-            Literal(v) => *v,
-            Jump(v) => *v,
-            Conditional(v) => *v,
-            Call(v) => *v,
-            ALU(alu) => alu.value()
-        }
-    }
-
-    pub fn compile(&self) -> u16 {
-        match self {
-            Literal(_v) => self.value() | (1 << 15),
-            Jump(_v) => self.value(),
-            Conditional(_v) => self.value() | (1 << 13),
-            Call(_v) => self.value() | (2 << 13),
-            ALU(alu) => alu.compile(),
-        }
-    }
-
     pub fn show(&self) -> String {
         match self {
             Literal(v) => format!("LIT     {:0>4X}", v),
@@ -185,21 +166,6 @@ pub struct AluAttributes {
 }
 
 impl AluAttributes {
-    pub fn value(&self) -> u16 {
-        {
-            let mut ret = (self.opcode as u16) << 8;
-            if self.r2pc { ret = ret | 1 << 12 }
-            if self.t2n { ret = ret | 1 << 7 }
-            if self.t2r { ret = ret | 1 << 6 }
-            if self.n2_at_t { ret = ret | 1 << 5 }
-            ret = ret | ((self.r_dir & 3) as u16) << 2;
-            ret = ret | ((self.d_dir & 3) as u16) << 0;
-            ret
-        }
-    }
-
-    pub fn compile(&self) -> u16 { self.value() | (3 << 13) }
-
     pub fn show(&self) -> String {
         let mut s = "ALU     ".to_string();
         s = format!("{}{}", s, OPCODE_NAMES[self.opcode as usize]);
@@ -261,7 +227,7 @@ mod tests {
         ];
         for (bin, expected_instruction) in test_cases.iter() {
             let decoded = decode(*bin).unwrap();
-            assert_eq!(decoded, *expected_instruction);
+            assert_eq!(*expected_instruction, decoded);
             // println!("decode(0x{:0>4x}) = {}", *bin, decoded)
         }
     }
@@ -269,41 +235,32 @@ mod tests {
     #[test]
     fn instruction_value_compile_show() {
         let test_cases = [
-            (0x0000, 0, 0, "UBRANCH 0000".to_string()),
-            (0x1fff, 8191, 8191, "UBRANCH 3FFE".to_string()),
-            (0x2000, 0, 8192, "0BRANCH 0000".to_string()),
-            (0x3fff, 8191, 16383, "0BRANCH 3FFE".to_string()),
-            (0x4000, 0, 16384, "CALL    0000".to_string()),
-            (0x5fff, 8191, 24575, "CALL    3FFE".to_string()),
-            (0x8000, 0, 32768, "LIT     0000".to_string()),
-            (0xffff, 32767, 65535, "LIT     7FFF".to_string()),
-            (0x6000, 0, 24576, "ALU     T".to_string()),
-            (0x6100, 256, 24832, "ALU     N".to_string()),
-            (0x7000, 4096, 28672, "ALU     T R→PC".to_string()),
-            (0x6080, 128, 24704, "ALU     T T→N".to_string()),
-            (0x6040, 64, 24640, "ALU     T T→R".to_string()),
-            (0x6020, 32, 24608, "ALU     T N→[T]".to_string()),
-            (0x600c, 12, 24588, "ALU     T r-1".to_string()),
-            (0x6004, 4, 24580, "ALU     T r+1".to_string()),
-            (0x6003, 3, 24579, "ALU     T d-1".to_string()),
-            (0x6001, 1, 24577, "ALU     T d+1".to_string()),
-            (0x6f00, 3840, 28416, "ALU     Nu<T".to_string()),
-            (0x70e5, 4325, 28901, "ALU     T R→PC T→N T→R N→[T] r+1 d+1".to_string()),
-            (0x7fef, 8175, 32751, "ALU     Nu<T R→PC T→N T→R N→[T] r-1 d-1".to_string()),
+            (0x0000, "UBRANCH 0000".to_string()),
+            (0x1fff, "UBRANCH 3FFE".to_string()),
+            (0x2000, "0BRANCH 0000".to_string()),
+            (0x3fff, "0BRANCH 3FFE".to_string()),
+            (0x4000, "CALL    0000".to_string()),
+            (0x5fff, "CALL    3FFE".to_string()),
+            (0x8000, "LIT     0000".to_string()),
+            (0xffff, "LIT     7FFF".to_string()),
+            (0x6000, "ALU     T".to_string()),
+            (0x6100, "ALU     N".to_string()),
+            (0x7000, "ALU     T R→PC".to_string()),
+            (0x6080, "ALU     T T→N".to_string()),
+            (0x6040, "ALU     T T→R".to_string()),
+            (0x6020, "ALU     T N→[T]".to_string()),
+            (0x600c, "ALU     T r-1".to_string()),
+            (0x6004, "ALU     T r+1".to_string()),
+            (0x6003, "ALU     T d-1".to_string()),
+            (0x6001, "ALU     T d+1".to_string()),
+            (0x6f00, "ALU     Nu<T".to_string()),
+            (0x70e5, "ALU     T R→PC T→N T→R N→[T] r+1 d+1".to_string()),
+            (0x7fef, "ALU     Nu<T R→PC T→N T→R N→[T] r-1 d-1".to_string()),
         ];
-        for (bin, expected_value, expected_compile, expected_show) in test_cases.iter() {
+        for (bin, expected_show) in test_cases.iter() {
             let decoded = decode(*bin).unwrap();
-
-            let decoded_value = decoded.value();
-            assert_eq!(decoded_value, *expected_value);
-            // println!("i.value()   : {}", decoded_value);
-
-            let decoded_compile = decoded.compile();
-            assert_eq!(decoded_compile, *expected_compile);
-            // println!("i.compile()   : {}", decoded_compile)
-
             let decoded_show = decoded.show();
-            assert_eq!(decoded_show, *expected_show);
+            assert_eq!(*expected_show, decoded_show);
             // println!("i.show()   : {}", decoded_show);
         }
     }

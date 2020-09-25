@@ -37,8 +37,7 @@ $ j1 --repl
 ### run j1 eforth repl with a script
 ```shell
 # from j1-cpu directory
-$ cd resources
-$ j1 --repl --script simple.fth
+$ j1 --repl --script resources/simple.fth
 ```
 
 ### j1 options
@@ -75,5 +74,4 @@ OPTIONS:
 | j1 emulator                 | &#x2714; |
 | arguments for j1 executable | &#x2714; |
 | j1 gRPC service             |  |
-| test with swap forth        |  |
 | add verbosity levels        |  |
